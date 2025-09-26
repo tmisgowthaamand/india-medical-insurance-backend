@@ -15,28 +15,48 @@ import asyncio
 from model_pipeline import build_pipeline, get_feature_importance
 from utils import hash_password, verify_password, create_access_token, decode_token, get_current_user
 from database import supabase_client, init_database
+from error_handler import setup_error_handlers, log_startup_info, request_logging_middleware
 
 app = FastAPI(title="India Medical Insurance ML Dashboard", version="1.0.0")
+
+# Setup error handling
+setup_error_handlers(app)
+
+# Add request logging middleware
+app.middleware("http")(request_logging_middleware)
 
 # Startup event
 @app.on_event("startup")
 async def startup_event():
     """Initialize database and load model on startup"""
+    log_startup_info()
     print("Starting up application...")
     
-    # Initialize database
-    await init_database()
-    
-    # Load model if exists
-    global model
-    if os.path.exists(MODEL_PATH):
-        try:
-            model = load(MODEL_PATH)
-            print("Model loaded successfully")
-        except Exception as e:
-            print(f"Error loading model: {e}")
-    else:
-        print("No model found. Please train a model first.")
+    try:
+        # Initialize database
+        await init_database()
+        print("✅ Database initialization completed")
+        
+        # Load model if exists
+        global model
+        if os.path.exists(MODEL_PATH):
+            try:
+                model = load(MODEL_PATH)
+                print("✅ Model loaded successfully")
+            except Exception as e:
+                print(f"⚠️ Error loading model: {e}")
+                model = None
+        else:
+            print("⚠️ No model found. Please train a model first.")
+            model = None
+            
+        print("🚀 Application startup completed successfully")
+        
+    except Exception as e:
+        print(f"❌ Startup error: {e}")
+        import traceback
+        print(f"Full traceback: {traceback.format_exc()}")
+        # Don't raise the exception to allow the server to start
 
 @app.on_event("shutdown")
 async def shutdown_event():
