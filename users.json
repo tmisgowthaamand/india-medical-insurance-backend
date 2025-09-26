@@ -1,0 +1,27 @@
+{
+  "admin@example.com": {
+    "password": "admin123",
+    "created_at": "2025-01-26T12:30:00.000000",
+    "is_admin": true
+  },
+  "user@example.com": {
+    "password": "user123",
+    "created_at": "2025-01-26T12:30:00.000000",
+    "is_admin": false
+  },
+  "demo@example.com": {
+    "password": "demo123",
+    "created_at": "2025-01-26T12:30:00.000000",
+    "is_admin": false
+  },
+  "gowthaamaneswar1998@gmail.com": {
+    "password": "12345678",
+    "created_at": "2025-09-26T12:40:31.660347",
+    "is_admin": false
+  },
+  "gokrishna98@gmail.com": {
+    "password": "12345678",
+    "created_at": "2025-09-26T13:56:14.941485",
+    "is_admin": false
+  }
+}
