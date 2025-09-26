@@ -9,13 +9,19 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.0
       - key: SUPABASE_URL
-        fromDatabase:
-          name: medical-insurance-db
-          property: connectionString
-      - key: SUPABASE_KEY
-        sync: false
+        value: https://gucyzhjyciqnvxedmoxo.supabase.co
+      - key: SUPABASE_ANON_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1Y3l6aGp5Y2lxbnZ4ZWRtb3hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4ODA0MTksImV4cCI6MjA3NDQ1NjQxOX0.BYbV3CHVTrd4KzhRAFSYB7S2RiFv342f0J-Es-4pkKI
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1Y3l6aGp5Y2lxbnZ4ZWRtb3hvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1ODg4MDQxOSwiZXhwIjoyMDc0NDU2NDE5fQ.yBrXifdpZ9vrymLQ1EiZnspxHfF0x73wAP0Mfl96kk4
       - key: JWT_SECRET_KEY
-        generateValue: true
+        value: medical_insurance_dashboard_jwt_secret_key_2024_change_in_production
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 30
       - key: ENVIRONMENT
         value: production
+      - key: ALLOWED_ORIGINS
+        value: https://india-medical-insurance-frontend.vercel.app,http://localhost:3000,*
     healthCheckPath: /health

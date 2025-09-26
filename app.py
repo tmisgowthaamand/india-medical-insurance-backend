@@ -46,14 +46,31 @@ async def shutdown_event():
 # CORS middleware
 # Get allowed origins from environment variable or use default for development
 import os
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "https://india-medical-insurance-frontend.vercel.app,http://localhost:3000,*").split(",")
+allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "https://india-medical-insurance-frontend.vercel.app,http://localhost:3000,*")
+allowed_origins = [origin.strip() for origin in allowed_origins_str.split(",")]
+
+print(f"CORS allowed origins: {allowed_origins}")  # Debug log
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
+    allow_headers=[
+        "*",
+        "Authorization",
+        "Content-Type",
+        "X-Requested-With",
+        "Accept",
+        "Origin",
+        "Access-Control-Request-Method",
+        "Access-Control-Request-Headers"
+    ],
+    expose_headers=[
+        "Access-Control-Allow-Origin",
+        "Access-Control-Allow-Methods",
+        "Access-Control-Allow-Headers"
+    ]
 )
 
 # Configuration
@@ -196,7 +213,17 @@ def health_check():
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "version": "1.0.0",
-        "model_loaded": model is not None
+        "model_loaded": model is not None,
+        "cors_origins": allowed_origins
+    }
+
+@app.get("/cors-test")
+def cors_test():
+    """CORS test endpoint"""
+    return {
+        "message": "CORS test successful",
+        "allowed_origins": allowed_origins,
+        "timestamp": datetime.now().isoformat()
     }
 
 @app.options("/{path:path}")
