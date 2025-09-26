@@ -31,13 +31,27 @@ class SupabaseClient:
             self.enabled = False
         else:
             try:
-                self.client: Client = create_client(self.url, self.service_role_key)
+                # Try different initialization methods for compatibility
+                try:
+                    # Method 1: Named parameters (newer versions)
+                    self.client: Client = create_client(
+                        supabase_url=self.url,
+                        supabase_key=self.service_role_key
+                    )
+                except TypeError:
+                    # Method 2: Positional parameters (older versions)
+                    self.client: Client = create_client(self.url, self.service_role_key)
+                
                 self.enabled = True
                 logger.info("Supabase client initialized successfully")
             except Exception as e:
                 logger.error(f"Failed to initialize Supabase client: {e}")
+                logger.error(f"URL: {self.url[:50] if self.url else 'None'}... (truncated)")
+                logger.error(f"Key length: {len(self.service_role_key) if self.service_role_key else 0}")
+                # Try to initialize without Supabase for fallback mode
                 self.client = None
                 self.enabled = False
+                logger.warning("Falling back to local file storage mode")
     
     def is_enabled(self) -> bool:
         """Check if Supabase is properly configured and enabled"""

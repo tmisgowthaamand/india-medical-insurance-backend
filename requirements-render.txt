@@ -1,3 +1,4 @@
+# Production requirements for Render deployment
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 gunicorn==21.2.0
@@ -15,5 +16,6 @@ cryptography>=3.4.0
 python-dateutil>=2.8.2
 pytz>=2020.1
 tzdata>=2022.1
+# Updated Supabase version for better compatibility
 supabase==2.7.4
 python-dotenv==1.0.0
