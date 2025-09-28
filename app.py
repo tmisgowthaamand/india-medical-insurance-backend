@@ -66,7 +66,7 @@ async def shutdown_event():
 # CORS middleware
 # Get allowed origins from environment variable or use default for development
 import os
-allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "https://india-medical-insurance-frontend.vercel.app,http://localhost:3000,*")
+allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "https://india-medical-insurance-frontend.vercel.app,http://localhost:3000,http://localhost:3001,*")
 allowed_origins = [origin.strip() for origin in allowed_origins_str.split(",")]
 
 print(f"CORS allowed origins: {allowed_origins}")  # Debug log
