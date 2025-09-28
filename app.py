@@ -223,10 +223,12 @@ async def save_users(users):
 
 # Routes
 @app.get("/")
+@app.head("/")
 def root():
     return {"message": "India Medical Insurance ML Dashboard API", "version": "1.0.0"}
 
 @app.get("/health")
+@app.head("/health")
 def health_check():
     """Health check endpoint for deployment platforms"""
     return {
@@ -250,6 +252,12 @@ def cors_test():
 def options_handler(path: str):
     """Handle OPTIONS requests for CORS"""
     return {"message": "OK"}
+
+@app.head("/{path:path}")
+def head_handler(path: str):
+    """Handle HEAD requests for health checks and monitoring"""
+    # HEAD requests should return empty body with proper status
+    return {}
 
 @app.post('/signup', response_model=dict)
 async def signup(payload: UserIn):
