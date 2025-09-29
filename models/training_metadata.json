@@ -1,5 +1,5 @@
 {
-  "training_date": "2025-09-29T11:28:51.037144",
+  "training_date": "2025-09-29T11:38:07.585104",
   "training_samples": 85,
   "test_samples": 15,
   "train_rmse": 5230.309318028229,
@@ -15,8 +15,8 @@
     "premium_annual_inr"
   ],
   "model_type": "RandomForestRegressor",
-  "training_time_seconds": 0.13,
-  "total_time_seconds": 0.21,
+  "training_time_seconds": 0.15,
+  "total_time_seconds": 0.3,
   "optimized_for": "Speed",
   "training_time": "Fast (< 30 seconds)",
   "n_estimators": 50,

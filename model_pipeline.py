@@ -29,7 +29,8 @@ def build_pipeline(random_state=42):
         random_state=random_state,
         max_depth=10,
         min_samples_split=5,
-        min_samples_leaf=2
+        min_samples_leaf=2,
+        criterion='squared_error'  # Use compatible criterion
     )
 
     pipeline = Pipeline([

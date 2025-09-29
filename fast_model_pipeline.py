@@ -34,12 +34,14 @@ def build_fast_pipeline(model_type="fast_rf", random_state=42):
         # Linear regression - fastest training
         model = LinearRegression()
     elif model_type == "fast_tree":
-        # Single decision tree - very fast
+        # Single decision tree - very fast (compatible parameters)
         model = DecisionTreeRegressor(
             max_depth=8,
             min_samples_split=10,
             min_samples_leaf=5,
-            random_state=random_state
+            random_state=random_state,
+            splitter='best',
+            criterion='squared_error'  # Use compatible criterion
         )
     elif model_type == "fast_rf":
         # Optimized Random Forest - balanced speed/accuracy
@@ -51,7 +53,8 @@ def build_fast_pipeline(model_type="fast_rf", random_state=42):
             n_jobs=-1,        # Use all CPU cores
             random_state=random_state,
             bootstrap=True,
-            max_features='sqrt'  # Use sqrt of features for speed
+            max_features='sqrt',  # Use sqrt of features for speed
+            criterion='squared_error'  # Use compatible criterion
         )
     else:
         # Default to fast RF
@@ -61,7 +64,8 @@ def build_fast_pipeline(model_type="fast_rf", random_state=42):
             min_samples_split=10,
             min_samples_leaf=5,
             n_jobs=-1,
-            random_state=random_state
+            random_state=random_state,
+            criterion='squared_error'  # Use compatible criterion
         )
 
     pipeline = Pipeline([
