@@ -1,8 +1,8 @@
 {
-  "training_date": "2025-09-29T13:33:07.594562",
+  "training_date": "2025-09-29T13:47:13.804440",
   "training_samples": 85,
   "test_samples": 15,
-  "train_rmse": 5230.30931802823,
+  "train_rmse": 5230.309318028229,
   "test_rmse": 4842.854552369773,
   "train_r2": 0.6710322730097988,
   "test_r2": 0.6373644288687099,
@@ -15,8 +15,8 @@
     "premium_annual_inr"
   ],
   "model_type": "RandomForestRegressor",
-  "training_time_seconds": 0.18,
-  "total_time_seconds": 0.34,
+  "training_time_seconds": 0.17,
+  "total_time_seconds": 0.3,
   "optimized_for": "Speed",
   "training_time": "Fast (< 30 seconds)",
   "n_estimators": 50,
