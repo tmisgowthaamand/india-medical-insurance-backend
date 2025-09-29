@@ -21,9 +21,9 @@ class SupabaseClient:
     """Supabase database client for the medical insurance dashboard"""
     
     def __init__(self):
-        self.url = os.getenv("https://gucyzhjyciqnvxedmoxo.supabase.co")
-        self.anon_key = os.getenv("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1Y3l6aGp5Y2lxbnZ4ZWRtb3hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4ODA0MTksImV4cCI6MjA3NDQ1NjQxOX0.BYbV3CHVTrd4KzhRAFSYB7S2RiFv342f0J-Es-4pkKI")
-        self.service_role_key = os.getenv("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1Y3l6aGp5Y2lxbnZ4ZWRtb3hvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1ODg4MDQxOSwiZXhwIjoyMDc0NDU2NDE5fQ.yBrXifdpZ9vrymLQ1EiZnspxHfF0x73wAP0Mfl96kk4")
+        self.url = os.getenv("SUPABASE_URL")
+        self.anon_key = os.getenv("SUPABASE_ANON_KEY")
+        self.service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
         
         if not all([self.url, self.anon_key, self.service_role_key]):
             logger.warning("Supabase credentials not found. Using fallback mode.")
