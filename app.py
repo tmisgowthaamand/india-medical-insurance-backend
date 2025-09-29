@@ -274,6 +274,70 @@ async def save_users(users):
     with open(USERS_DB, 'w') as f:
         json.dump(users, f, indent=2)
 
+async def store_prediction_locally(user_email: str, input_data: dict, prediction: float, confidence: float):
+    """Store prediction locally in JSON file"""
+    predictions_file = "predictions.json"
+    
+    # Load existing predictions
+    predictions = []
+    if os.path.exists(predictions_file):
+        try:
+            with open(predictions_file, 'r') as f:
+                predictions = json.load(f)
+        except Exception:
+            predictions = []
+    
+    # Add new prediction
+    new_prediction = {
+        "user_email": user_email,
+        "input_data": input_data,
+        "prediction": prediction,
+        "confidence": confidence,
+        "created_at": datetime.now().isoformat()
+    }
+    
+    predictions.append(new_prediction)
+    
+    # Keep only last 1000 predictions to avoid file getting too large
+    if len(predictions) > 1000:
+        predictions = predictions[-1000:]
+    
+    # Save predictions
+    with open(predictions_file, 'w') as f:
+        json.dump(predictions, f, indent=2)
+
+async def get_local_predictions(user_email: str = None):
+    """Get local predictions, optionally filtered by user"""
+    predictions_file = "predictions.json"
+    
+    if os.path.exists(predictions_file):
+        try:
+            with open(predictions_file, 'r') as f:
+                all_predictions = json.load(f)
+                
+            # Filter by user if specified
+            if user_email:
+                user_predictions = [p for p in all_predictions if p.get('user_email') == user_email]
+                return user_predictions
+            else:
+                return all_predictions
+        except Exception:
+            return []
+    return []
+
+async def is_admin_user(user_email: str) -> bool:
+    """Check if user is admin"""
+    try:
+        if supabase_client.is_enabled():
+            user = await supabase_client.get_user(user_email)
+            return user and user.get("is_admin", False)
+        else:
+            users = await load_users()
+            user = users.get(user_email, {})
+            return user.get("is_admin", False)
+    except Exception:
+        return False
+
 # Routes
 @app.get("/")
 @app.head("/")
@@ -500,17 +564,28 @@ async def predict(payload: PredictIn, current_user: str = Depends(get_current_us
         
         final_prediction = float(max(0, prediction))
         
-        # Store prediction in Supabase
-        if supabase_client.is_enabled():
-            try:
+        # Store prediction in Supabase or local file
+        try:
+            if supabase_client.is_enabled():
                 await supabase_client.store_prediction(
                     user_email=current_user,
                     input_data=input_data,
                     prediction=final_prediction,
                     confidence=confidence
                 )
-            except Exception as e:
-                print(f"Error storing prediction in Supabase: {e}")
+                print(f"✅ Prediction stored in Supabase for {current_user}")
+            else:
+                # Store locally if Supabase not available
+                await store_prediction_locally(current_user, input_data, final_prediction, confidence)
+                print(f"✅ Prediction stored locally for {current_user}")
+        except Exception as e:
+            print(f"⚠️ Error storing prediction: {e}")
+            # Try local storage as fallback
+            try:
+                await store_prediction_locally(current_user, input_data, final_prediction, confidence)
+                print(f"✅ Prediction stored locally as fallback for {current_user}")
+            except Exception as local_e:
+                print(f"❌ Failed to store prediction locally: {local_e}")
         
         return PredictResponse(
             prediction=final_prediction,
@@ -564,17 +639,19 @@ async def get_stats():
     if df is None:
         dataset_to_use = None
         
-        # First try the current CSV_PATH
+        # First try the current CSV_PATH (most recently uploaded/used dataset)
         if os.path.exists(CSV_PATH):
             dataset_to_use = CSV_PATH
         else:
-            # Look for any CSV file in the data directory
+            # Look for the most recent CSV file in the data directory
             data_dir = "data"
             if os.path.exists(data_dir):
-                for file in os.listdir(data_dir):
-                    if file.endswith('.csv'):
-                        dataset_to_use = os.path.join(data_dir, file)
-                        break
+                csv_files = [f for f in os.listdir(data_dir) if f.endswith('.csv')]
+                if csv_files:
+                    # Get the most recently modified CSV file
+                    csv_files_with_time = [(f, os.path.getmtime(os.path.join(data_dir, f))) for f in csv_files]
+                    csv_files_with_time.sort(key=lambda x: x[1], reverse=True)  # Sort by modification time, newest first
+                    dataset_to_use = os.path.join(data_dir, csv_files_with_time[0][0])
         
         if not dataset_to_use:
             raise HTTPException(status_code=404, detail='No dataset found. Please upload a dataset first.')
@@ -583,23 +660,295 @@ async def get_stats():
         print("Using local CSV dataset")
     
     try:
+        # Basic statistics with NaN/inf handling
+        def safe_float(value, default=0.0):
+            """Convert to float, handling NaN and inf values"""
+            try:
+                result = float(value)
+                if pd.isna(result) or not np.isfinite(result):
+                    return default
+                return result
+            except (ValueError, TypeError):
+                return default
         
-        # Basic statistics
+        def safe_dict(series_counts):
+            """Convert value_counts to safe dict"""
+            try:
+                result = {}
+                for key, value in series_counts.items():
+                    # Ensure key is string and value is safe int
+                    safe_key = str(key) if key is not None else "Unknown"
+                    safe_value = int(value) if pd.notna(value) else 0
+                    result[safe_key] = safe_value
+                return result
+            except Exception:
+                return {}
+        
+        # Calculate smoker percentage safely
+        try:
+            smoker_pct = (df['smoker'] == 'Yes').mean() * 100
+            if pd.isna(smoker_pct):
+                smoker_pct = 0.0
+        except Exception:
+            smoker_pct = 0.0
+        
         stats = StatsResponse(
             total_policies=int(len(df)),
-            avg_premium=float(df['premium_annual_inr'].mean()),
-            avg_claim=float(df['claim_amount_inr'].mean()),
-            avg_age=float(df['age'].mean()),
-            avg_bmi=float(df['bmi'].mean()),
-            smoker_percentage=float((df['smoker'] == 'Yes').mean() * 100),
-            regions=df['region'].value_counts().to_dict(),
-            gender_distribution=df['gender'].value_counts().to_dict()
+            avg_premium=safe_float(df['premium_annual_inr'].mean()),
+            avg_claim=safe_float(df['claim_amount_inr'].mean()),
+            avg_age=safe_float(df['age'].mean()),
+            avg_bmi=safe_float(df['bmi'].mean()),
+            smoker_percentage=safe_float(smoker_pct),
+            regions=safe_dict(df['region'].value_counts()),
+            gender_distribution=safe_dict(df['gender'].value_counts())
         )
         
         return stats
     
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error calculating stats: {str(e)}")
+        print(f"Stats calculation error: {e}")  # Debug log
+        # Return default stats if calculation fails
+        return StatsResponse(
+            total_policies=0,
+            avg_premium=0.0,
+            avg_claim=0.0,
+            avg_age=0.0,
+            avg_bmi=0.0,
+            smoker_percentage=0.0,
+            regions={},
+            gender_distribution={}
+        )
+
+@app.get('/user-stats', response_model=StatsResponse)
+async def get_user_stats(current_user: str = Depends(get_current_user_from_token)):
+    """Get statistics for current user only"""
+    try:
+        # Get user's predictions only
+        user_predictions = await get_local_predictions(current_user)
+        
+        if not user_predictions:
+            # Return empty stats if user has no predictions
+            return StatsResponse(
+                total_policies=0,
+                avg_premium=0.0,
+                avg_claim=0.0,
+                avg_age=0.0,
+                avg_bmi=0.0,
+                smoker_percentage=0.0,
+                regions={},
+                gender_distribution={}
+            )
+        
+        # Convert user predictions to DataFrame
+        prediction_rows = []
+        for pred in user_predictions:
+            input_data = pred['input_data']
+            row = {
+                'age': input_data.get('age', 30),
+                'bmi': input_data.get('bmi', 25.0),
+                'gender': input_data.get('gender', 'Male'),
+                'smoker': input_data.get('smoker', 'No'),
+                'region': input_data.get('region', 'North'),
+                'premium_annual_inr': input_data.get('premium_annual_inr', 20000.0),
+                'claim_amount_inr': pred['prediction']
+            }
+            prediction_rows.append(row)
+        
+        df = pd.DataFrame(prediction_rows)
+        
+        # Calculate user-specific stats
+        def safe_float(value, default=0.0):
+            try:
+                result = float(value)
+                if pd.isna(result) or not np.isfinite(result):
+                    return default
+                return result
+            except (ValueError, TypeError):
+                return default
+        
+        def safe_dict(series_counts):
+            try:
+                result = {}
+                for key, value in series_counts.items():
+                    safe_key = str(key) if key is not None else "Unknown"
+                    safe_value = int(value) if pd.notna(value) else 0
+                    result[safe_key] = safe_value
+                return result
+            except Exception:
+                return {}
+        
+        # Calculate smoker percentage safely
+        try:
+            smoker_pct = (df['smoker'] == 'Yes').mean() * 100
+            if pd.isna(smoker_pct):
+                smoker_pct = 0.0
+        except Exception:
+            smoker_pct = 0.0
+        
+        stats = StatsResponse(
+            total_policies=int(len(df)),
+            avg_premium=safe_float(df['premium_annual_inr'].mean()),
+            avg_claim=safe_float(df['claim_amount_inr'].mean()),
+            avg_age=safe_float(df['age'].mean()),
+            avg_bmi=safe_float(df['bmi'].mean()),
+            smoker_percentage=safe_float(smoker_pct),
+            regions=safe_dict(df['region'].value_counts()),
+            gender_distribution=safe_dict(df['gender'].value_counts())
+        )
+        
+        return stats
+        
+    except Exception as e:
+        print(f"User stats calculation error: {e}")
+        return StatsResponse(
+            total_policies=0,
+            avg_premium=0.0,
+            avg_claim=0.0,
+            avg_age=0.0,
+            avg_bmi=0.0,
+            smoker_percentage=0.0,
+            regions={},
+            gender_distribution={}
+        )
+
+@app.get('/live-stats', response_model=StatsResponse)
+async def get_live_stats():
+    """Get dataset statistics including user predictions (live data)"""
+    df = None
+    
+    # Try to get data from Supabase first
+    if supabase_client.is_enabled():
+        try:
+            df = await supabase_client.get_latest_dataset()
+            if df is not None:
+                print("Using dataset from Supabase")
+        except Exception as e:
+            print(f"Error getting dataset from Supabase: {e}")
+    
+    # Fallback to local CSV files
+    if df is None:
+        dataset_to_use = None
+        
+        # First try the current CSV_PATH (most recently uploaded/used dataset)
+        if os.path.exists(CSV_PATH):
+            dataset_to_use = CSV_PATH
+        else:
+            # Look for the most recent CSV file in the data directory
+            data_dir = "data"
+            if os.path.exists(data_dir):
+                csv_files = [f for f in os.listdir(data_dir) if f.endswith('.csv')]
+                if csv_files:
+                    # Get the most recently modified CSV file
+                    csv_files_with_time = [(f, os.path.getmtime(os.path.join(data_dir, f))) for f in csv_files]
+                    csv_files_with_time.sort(key=lambda x: x[1], reverse=True)  # Sort by modification time, newest first
+                    dataset_to_use = os.path.join(data_dir, csv_files_with_time[0][0])
+        
+        if not dataset_to_use:
+            raise HTTPException(status_code=404, detail='No dataset found. Please upload a dataset first.')
+        
+        df = pd.read_csv(dataset_to_use)
+        print("Using local CSV dataset")
+    
+    # Get user predictions and add them to the dataset
+    try:
+        predictions = []
+        
+        # Try Supabase first
+        if supabase_client.is_enabled():
+            try:
+                # Get recent predictions from all users
+                # Note: This would need to be implemented in database.py
+                print("Would get predictions from Supabase here")
+            except Exception as e:
+                print(f"Error getting predictions from Supabase: {e}")
+        
+        # Get local predictions
+        local_predictions = await get_local_predictions()
+        
+        # Convert predictions to DataFrame format and append
+        if local_predictions:
+            prediction_rows = []
+            for pred in local_predictions:
+                input_data = pred['input_data']
+                row = {
+                    'age': input_data.get('age', 30),
+                    'bmi': input_data.get('bmi', 25.0),
+                    'gender': input_data.get('gender', 'Male'),
+                    'smoker': input_data.get('smoker', 'No'),
+                    'region': input_data.get('region', 'North'),
+                    'premium_annual_inr': input_data.get('premium_annual_inr', 20000.0),
+                    'claim_amount_inr': pred['prediction']  # Use prediction as claim amount
+                }
+                prediction_rows.append(row)
+            
+            if prediction_rows:
+                pred_df = pd.DataFrame(prediction_rows)
+                df = pd.concat([df, pred_df], ignore_index=True)
+                print(f"✅ Added {len(prediction_rows)} user predictions to stats")
+    
+    except Exception as e:
+        print(f"Error adding predictions to stats: {e}")
+    
+    # Calculate stats with the enhanced dataset
+    try:
+        # Basic statistics with NaN/inf handling
+        def safe_float(value, default=0.0):
+            """Convert to float, handling NaN and inf values"""
+            try:
+                result = float(value)
+                if pd.isna(result) or not np.isfinite(result):
+                    return default
+                return result
+            except (ValueError, TypeError):
+                return default
+        
+        def safe_dict(series_counts):
+            """Convert value_counts to safe dict"""
+            try:
+                result = {}
+                for key, value in series_counts.items():
+                    # Ensure key is string and value is safe int
+                    safe_key = str(key) if key is not None else "Unknown"
+                    safe_value = int(value) if pd.notna(value) else 0
+                    result[safe_key] = safe_value
+                return result
+            except Exception:
+                return {}
+        
+        # Calculate smoker percentage safely
+        try:
+            smoker_pct = (df['smoker'] == 'Yes').mean() * 100
+            if pd.isna(smoker_pct):
+                smoker_pct = 0.0
+        except Exception:
+            smoker_pct = 0.0
+        
+        stats = StatsResponse(
+            total_policies=int(len(df)),
+            avg_premium=safe_float(df['premium_annual_inr'].mean()),
+            avg_claim=safe_float(df['claim_amount_inr'].mean()),
+            avg_age=safe_float(df['age'].mean()),
+            avg_bmi=safe_float(df['bmi'].mean()),
+            smoker_percentage=safe_float(smoker_pct),
+            regions=safe_dict(df['region'].value_counts()),
+            gender_distribution=safe_dict(df['gender'].value_counts())
+        )
+        
+        return stats
+    
+    except Exception as e:
+        print(f"Live stats calculation error: {e}")  # Debug log
+        # Return default stats if calculation fails
+        return StatsResponse(
+            total_policies=0,
+            avg_premium=0.0,
+            avg_claim=0.0,
+            avg_age=0.0,
+            avg_bmi=0.0,
+            smoker_percentage=0.0,
+            regions={},
+            gender_distribution={}
+        )
 
 @app.get('/claims-analysis', response_model=ClaimsAnalysis)
 def get_claims_analysis():
@@ -607,17 +956,19 @@ def get_claims_analysis():
     # Find an available dataset file
     dataset_to_use = None
     
-    # First try the current CSV_PATH
+    # First try the current CSV_PATH (most recently uploaded/used dataset)
     if os.path.exists(CSV_PATH):
         dataset_to_use = CSV_PATH
     else:
-        # Look for any CSV file in the data directory
+        # Look for the most recent CSV file in the data directory
         data_dir = "data"
         if os.path.exists(data_dir):
-            for file in os.listdir(data_dir):
-                if file.endswith('.csv'):
-                    dataset_to_use = os.path.join(data_dir, file)
-                    break
+            csv_files = [f for f in os.listdir(data_dir) if f.endswith('.csv')]
+            if csv_files:
+                # Get the most recently modified CSV file
+                csv_files_with_time = [(f, os.path.getmtime(os.path.join(data_dir, f))) for f in csv_files]
+                csv_files_with_time.sort(key=lambda x: x[1], reverse=True)  # Sort by modification time, newest first
+                dataset_to_use = os.path.join(data_dir, csv_files_with_time[0][0])
     
     if not dataset_to_use:
         raise HTTPException(status_code=404, detail='No dataset found. Please upload a dataset first.')
@@ -658,8 +1009,175 @@ def get_claims_analysis():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error in claims analysis: {str(e)}")
 
+@app.get('/live-claims-analysis', response_model=ClaimsAnalysis)
+async def get_live_claims_analysis():
+    """Get detailed claims analysis including user predictions (live data)"""
+    # Find an available dataset file
+    dataset_to_use = None
+    
+    # First try the current CSV_PATH (most recently uploaded/used dataset)
+    if os.path.exists(CSV_PATH):
+        dataset_to_use = CSV_PATH
+    else:
+        # Look for the most recent CSV file in the data directory
+        data_dir = "data"
+        if os.path.exists(data_dir):
+            csv_files = [f for f in os.listdir(data_dir) if f.endswith('.csv')]
+            if csv_files:
+                # Get the most recently modified CSV file
+                csv_files_with_time = [(f, os.path.getmtime(os.path.join(data_dir, f))) for f in csv_files]
+                csv_files_with_time.sort(key=lambda x: x[1], reverse=True)  # Sort by modification time, newest first
+                dataset_to_use = os.path.join(data_dir, csv_files_with_time[0][0])
+    
+    if not dataset_to_use:
+        raise HTTPException(status_code=404, detail='No dataset found. Please upload a dataset first.')
+    
+    try:
+        df = pd.read_csv(dataset_to_use)
+        
+        # Add user predictions to the analysis
+        try:
+            local_predictions = await get_local_predictions()
+            
+            # Convert predictions to DataFrame format and append
+            if local_predictions:
+                prediction_rows = []
+                for pred in local_predictions:
+                    input_data = pred['input_data']
+                    row = {
+                        'age': input_data.get('age', 30),
+                        'bmi': input_data.get('bmi', 25.0),
+                        'gender': input_data.get('gender', 'Male'),
+                        'smoker': input_data.get('smoker', 'No'),
+                        'region': input_data.get('region', 'North'),
+                        'premium_annual_inr': input_data.get('premium_annual_inr', 20000.0),
+                        'claim_amount_inr': pred['prediction']  # Use prediction as claim amount
+                    }
+                    prediction_rows.append(row)
+                
+                if prediction_rows:
+                    pred_df = pd.DataFrame(prediction_rows)
+                    df = pd.concat([df, pred_df], ignore_index=True)
+                    print(f"✅ Added {len(prediction_rows)} user predictions to claims analysis")
+        
+        except Exception as e:
+            print(f"Error adding predictions to claims analysis: {e}")
+        
+        # Age group analysis
+        df['age_group'] = pd.cut(df['age'], bins=[0, 30, 40, 50, 60, 100], labels=['<30', '30-40', '40-50', '50-60', '60+'])
+        age_groups = df.groupby('age_group').agg({
+            'claim_amount_inr': 'mean',
+            'premium_annual_inr': 'mean'
+        }).to_dict()
+        
+        # Region analysis
+        region_analysis = df.groupby('region').agg({
+            'claim_amount_inr': ['mean', 'count'],
+            'premium_annual_inr': 'mean'
+        }).to_dict()
+        
+        # Smoker analysis
+        smoker_analysis = df.groupby('smoker').agg({
+            'claim_amount_inr': 'mean',
+            'premium_annual_inr': 'mean'
+        }).to_dict()
+        
+        # Premium vs Claims correlation
+        premium_bins = pd.qcut(df['premium_annual_inr'], q=5, labels=['Low', 'Medium-Low', 'Medium', 'Medium-High', 'High'])
+        premium_vs_claims = df.groupby(premium_bins)['claim_amount_inr'].mean().to_dict()
+        
+        return ClaimsAnalysis(
+            age_groups=age_groups,
+            region_analysis=region_analysis,
+            smoker_analysis=smoker_analysis,
+            premium_vs_claims=premium_vs_claims
+        )
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error in live claims analysis: {str(e)}")
+
+@app.get('/user-claims-analysis', response_model=ClaimsAnalysis)
+async def get_user_claims_analysis(current_user: str = Depends(get_current_user_from_token)):
+    """Get detailed claims analysis for current user only"""
+    try:
+        # Get user's predictions only
+        user_predictions = await get_local_predictions(current_user)
+        
+        if not user_predictions:
+            # Return empty analysis if user has no predictions
+            return ClaimsAnalysis(
+                age_groups={},
+                region_analysis={},
+                smoker_analysis={},
+                premium_vs_claims={}
+            )
+        
+        # Convert user predictions to DataFrame
+        prediction_rows = []
+        for pred in user_predictions:
+            input_data = pred['input_data']
+            row = {
+                'age': input_data.get('age', 30),
+                'bmi': input_data.get('bmi', 25.0),
+                'gender': input_data.get('gender', 'Male'),
+                'smoker': input_data.get('smoker', 'No'),
+                'region': input_data.get('region', 'North'),
+                'premium_annual_inr': input_data.get('premium_annual_inr', 20000.0),
+                'claim_amount_inr': pred['prediction']
+            }
+            prediction_rows.append(row)
+        
+        df = pd.DataFrame(prediction_rows)
+        
+        # Age group analysis
+        df['age_group'] = pd.cut(df['age'], bins=[0, 30, 40, 50, 60, 100], labels=['<30', '30-40', '40-50', '50-60', '60+'])
+        age_groups = df.groupby('age_group').agg({
+            'claim_amount_inr': 'mean',
+            'premium_annual_inr': 'mean'
+        }).to_dict()
+        
+        # Region analysis
+        region_analysis = df.groupby('region').agg({
+            'claim_amount_inr': ['mean', 'count'],
+            'premium_annual_inr': 'mean'
+        }).to_dict()
+        
+        # Smoker analysis
+        smoker_analysis = df.groupby('smoker').agg({
+            'claim_amount_inr': 'mean',
+            'premium_annual_inr': 'mean'
+        }).to_dict()
+        
+        # Premium vs Claims correlation
+        try:
+            if len(df) >= 5:  # Need at least 5 records for qcut
+                premium_bins = pd.qcut(df['premium_annual_inr'], q=min(5, len(df)), labels=False, duplicates='drop')
+                premium_vs_claims = df.groupby(premium_bins)['claim_amount_inr'].mean().to_dict()
+            else:
+                # For small datasets, just use simple grouping
+                premium_vs_claims = {"Low": df['claim_amount_inr'].mean()}
+        except Exception:
+            premium_vs_claims = {"All": df['claim_amount_inr'].mean()}
+        
+        return ClaimsAnalysis(
+            age_groups=age_groups,
+            region_analysis=region_analysis,
+            smoker_analysis=smoker_analysis,
+            premium_vs_claims=premium_vs_claims
+        )
+    
+    except Exception as e:
+        print(f"User claims analysis error: {e}")
+        return ClaimsAnalysis(
+            age_groups={},
+            region_analysis={},
+            smoker_analysis={},
+            premium_vs_claims={}
+        )
+
 @app.get('/model-info')
 def get_model_info(current_user: str = Depends(get_current_user_from_token)):
+    """Get model information and feature importance (requires authentication)"""
     """Get model information and feature importance"""
     if model is None:
         return {"status": "No model loaded"}
@@ -671,7 +1189,17 @@ def get_model_info(current_user: str = Depends(get_current_user_from_token)):
     if os.path.exists(metadata_path):
         with open(metadata_path, 'r') as f:
             metadata = json.load(f)
-            info.update(metadata)
+            # Clean metadata to handle NaN/inf values
+            cleaned_metadata = {}
+            for key, value in metadata.items():
+                if isinstance(value, float):
+                    if pd.isna(value) or not np.isfinite(value):
+                        cleaned_metadata[key] = 0.0
+                    else:
+                        cleaned_metadata[key] = value
+                else:
+                    cleaned_metadata[key] = value
+            info.update(cleaned_metadata)
     
     # Get feature importance (try fast method first, then fallback)
     try:
@@ -698,32 +1226,81 @@ def get_model_info(current_user: str = Depends(get_current_user_from_token)):
     
     return info
 
+@app.get('/model-status')
+def get_model_status():
+    """Get basic model status (public endpoint)"""
+    if model is None:
+        return {"status": "No model loaded", "model_loaded": False}
+    
+    info = {
+        "status": "Model loaded",
+        "model_loaded": True,
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    # Load basic training metadata if available
+    metadata_path = "models/training_metadata.json"
+    if os.path.exists(metadata_path):
+        try:
+            with open(metadata_path, 'r') as f:
+                metadata = json.load(f)
+                # Include only basic, safe metadata
+                safe_fields = ['training_date', 'model_type', 'training_time_seconds', 'optimized_for']
+                for field in safe_fields:
+                    if field in metadata:
+                        value = metadata[field]
+                        if isinstance(value, float):
+                            if pd.isna(value) or not np.isfinite(value):
+                                info[field] = 0.0
+                            else:
+                                info[field] = value
+                        else:
+                            info[field] = value
+        except Exception as e:
+            info["metadata_error"] = "Could not load training metadata"
+    
+    return info
+
 @app.post('/admin/upload')
 async def admin_upload(file: UploadFile = File(...), current_user: str = Depends(get_current_user_from_token)):
     """Upload new dataset and retrain model (Admin only)"""
-    # Check if user is admin
-    if supabase_client.is_enabled():
-        try:
-            user = await supabase_client.get_user(current_user)
-            if not user or not user.get("is_admin", False):
-                raise HTTPException(status_code=403, detail="Admin access required")
-        except Exception as e:
-            print(f"Error checking admin status in Supabase: {e}")
-            # Fall back to JSON check
-            users = await load_users()
-            user = users.get(current_user, {})
-            if not user.get("is_admin", False):
-                raise HTTPException(status_code=403, detail="Admin access required")
-    else:
-        users = await load_users()
-        user = users.get(current_user, {})
-        if not user.get("is_admin", False):
-            raise HTTPException(status_code=403, detail="Admin access required")
-    
     try:
+        print(f"🔄 Admin upload started by: {current_user}")
+        print(f"📁 File: {file.filename}, Content-Type: {file.content_type}")
+        
+        # Check if user is admin with better error handling
+        is_admin = False
+        try:
+            if supabase_client.is_enabled():
+                user = await supabase_client.get_user(current_user)
+                is_admin = user and user.get("is_admin", False)
+                print(f"🔐 Supabase admin check: {is_admin}")
+            else:
+                users = await load_users()
+                user = users.get(current_user, {})
+                is_admin = user.get("is_admin", False)
+                print(f"🔐 Local admin check: {is_admin}")
+        except Exception as e:
+            print(f"⚠️ Error checking admin status: {e}")
+            # Try fallback method
+            try:
+                users = await load_users()
+                user = users.get(current_user, {})
+                is_admin = user.get("is_admin", False)
+                print(f"🔐 Fallback admin check: {is_admin}")
+            except Exception as fallback_e:
+                print(f"❌ Fallback admin check failed: {fallback_e}")
+                raise HTTPException(status_code=500, detail=f"Could not verify admin status: {str(fallback_e)}")
+        
+        if not is_admin:
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        print("✅ Admin access verified")
+        
         # Create data directory if it doesn't exist
         data_dir = "data"
         os.makedirs(data_dir, exist_ok=True)
+        print(f"📁 Data directory ready: {data_dir}")
         
         # Validate filename
         if not file.filename:
@@ -738,8 +1315,18 @@ async def admin_upload(file: UploadFile = File(...), current_user: str = Depends
         if not clean_filename.endswith('.csv'):
             clean_filename += '.csv'
         
+        # Add timestamp to avoid conflicts with existing files
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        name_parts = clean_filename.rsplit('.', 1)
+        if len(name_parts) == 2:
+            clean_filename = f"{name_parts[0]}_{timestamp}.{name_parts[1]}"
+        else:
+            clean_filename = f"{clean_filename}_{timestamp}"
+        
         # Save uploaded file
         file_path = os.path.join(data_dir, clean_filename)
+        print(f"📁 Target file path: {file_path}")
         
         # Read file content
         content = file.file.read()
@@ -762,7 +1349,7 @@ async def admin_upload(file: UploadFile = File(...), current_user: str = Depends
                 os.remove(file_path)  # Remove invalid file
                 raise HTTPException(status_code=400, detail=f"Missing required columns: {missing_columns}")
             
-            # Store dataset in Supabase
+            # Try to store dataset in Supabase (optional, don't fail if it doesn't work)
             if supabase_client.is_enabled():
                 try:
                     metadata = {
@@ -772,11 +1359,13 @@ async def admin_upload(file: UploadFile = File(...), current_user: str = Depends
                     }
                     result = await supabase_client.store_dataset(clean_filename, df, metadata)
                     if "error" in result:
-                        print(f"Error storing dataset in Supabase: {result['error']}")
+                        print(f"Warning: Could not store dataset in Supabase: {result['error']}")
                     else:
                         print(f"Dataset stored in Supabase with ID: {result.get('dataset_id')}")
                 except Exception as e:
-                    print(f"Error storing dataset in Supabase: {e}")
+                    print(f"Warning: Could not store dataset in Supabase: {e}")
+            else:
+                print("Supabase not enabled, storing dataset locally only")
         
         except pd.errors.EmptyDataError:
             os.remove(file_path)
@@ -787,31 +1376,65 @@ async def admin_upload(file: UploadFile = File(...), current_user: str = Depends
         
         # Retrain model with the uploaded dataset
         print(f"Starting model training with dataset: {file_path}")
-        from train import train
         try:
             # Verify file exists before training
             if not os.path.exists(file_path):
                 raise HTTPException(status_code=500, detail=f"File not found after upload: {file_path}")
             
-            new_model = train(dataset_path=file_path)
+            print("File verified, starting fast training...")
+            
+            # Train model with new dataset using fast training
+            global model, CSV_PATH
+            new_model = fast_train(dataset_path=file_path, model_type="fast_rf")
+            
             if new_model:
-                global model, CSV_PATH
                 model = new_model
-                CSV_PATH = file_path
+                CSV_PATH = file_path  # Update to use the new dataset
                 print(f"Model training successful. New CSV_PATH: {CSV_PATH}")
-                return {"message": f"File uploaded successfully and model retrained. Dataset has {len(df)} rows."}
+                
+                return {
+                    "message": f"File uploaded successfully and model retrained. Dataset has {len(df)} rows.",
+                    "dataset_rows": len(df),
+                    "filename": file.filename,
+                    "training_completed": True,
+                    "file_path": file_path
+                }
             else:
-                return {"message": "File uploaded but model training failed - no model returned"}
+                print("Model training returned None")
+                return {
+                    "message": "File uploaded but model training failed - no model returned",
+                    "dataset_rows": len(df),
+                    "filename": file.filename,
+                    "training_completed": False,
+                    "file_path": file_path
+                }
+                
         except Exception as e:
-            print(f"Training error: {str(e)}")  # Debug log
-            return {"message": f"File uploaded but model training failed: {str(e)}"}
-    
+            print(f"Training error: {str(e)}")
+            import traceback
+            print(f"Full traceback: {traceback.format_exc()}")
+            
+            # Even if training fails, the file was uploaded successfully
+            return {
+                "message": f"File uploaded successfully but model training failed: {str(e)}",
+                "dataset_rows": len(df),
+                "filename": file.filename,
+                "training_completed": False,
+                "error": str(e),
+                "file_path": file_path
+            }
+            
+    except HTTPException:
+        # Re-raise HTTP exceptions (like 403, 400)
+        raise
     except Exception as e:
+        print(f"Upload failed with error: {str(e)}")
+        import traceback
+        print(f"Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 @app.post('/admin/retrain')
 async def admin_retrain(current_user: str = Depends(get_current_user_from_token)):
-    """Retrain model with existing dataset (Admin only)"""
     # Check if user is admin
     if supabase_client.is_enabled():
         try:

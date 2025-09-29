@@ -1,0 +1,212 @@
+[
+  {
+    "user_email": "user1@example.com",
+    "input_data": {
+      "age": 25,
+      "bmi": 22.0,
+      "gender": "Male",
+      "smoker": "No",
+      "region": "North",
+      "premium_annual_inr": 15000.0
+    },
+    "prediction": 12000.0,
+    "confidence": 0.85,
+    "created_at": "2025-09-29T12:54:50.640307"
+  },
+  {
+    "user_email": "user2@example.com",
+    "input_data": {
+      "age": 45,
+      "bmi": 28.5,
+      "gender": "Female",
+      "smoker": "Yes",
+      "region": "South",
+      "premium_annual_inr": 35000.0
+    },
+    "prediction": 45000.0,
+    "confidence": 0.92,
+    "created_at": "2025-09-29T12:54:50.671951"
+  },
+  {
+    "user_email": "user3@example.com",
+    "input_data": {
+      "age": 35,
+      "bmi": 24.0,
+      "gender": "Male",
+      "smoker": "No",
+      "region": "East",
+      "premium_annual_inr": 25000.0
+    },
+    "prediction": 18000.0,
+    "confidence": 0.78,
+    "created_at": "2025-09-29T12:54:50.691038"
+  },
+  {
+    "user_email": "user4@example.com",
+    "input_data": {
+      "age": 55,
+      "bmi": 30.0,
+      "gender": "Female",
+      "smoker": "Yes",
+      "region": "West",
+      "premium_annual_inr": 40000.0
+    },
+    "prediction": 55000.0,
+    "confidence": 0.88,
+    "created_at": "2025-09-29T12:54:50.715349"
+  },
+  {
+    "user_email": "user1@example.com",
+    "input_data": {
+      "age": 25,
+      "bmi": 22.0,
+      "gender": "Male",
+      "smoker": "No",
+      "region": "North",
+      "premium_annual_inr": 15000.0
+    },
+    "prediction": 12000.0,
+    "confidence": 0.85,
+    "created_at": "2025-09-29T13:01:04.275663"
+  },
+  {
+    "user_email": "user1@example.com",
+    "input_data": {
+      "age": 26,
+      "bmi": 23.0,
+      "gender": "Male",
+      "smoker": "No",
+      "region": "North",
+      "premium_annual_inr": 16000.0
+    },
+    "prediction": 13000.0,
+    "confidence": 0.87,
+    "created_at": "2025-09-29T13:01:04.298430"
+  },
+  {
+    "user_email": "user2@example.com",
+    "input_data": {
+      "age": 45,
+      "bmi": 28.5,
+      "gender": "Female",
+      "smoker": "Yes",
+      "region": "South",
+      "premium_annual_inr": 35000.0
+    },
+    "prediction": 45000.0,
+    "confidence": 0.92,
+    "created_at": "2025-09-29T13:01:04.327738"
+  },
+  {
+    "user_email": "user2@example.com",
+    "input_data": {
+      "age": 46,
+      "bmi": 29.0,
+      "gender": "Female",
+      "smoker": "Yes",
+      "region": "South",
+      "premium_annual_inr": 36000.0
+    },
+    "prediction": 47000.0,
+    "confidence": 0.9,
+    "created_at": "2025-09-29T13:01:04.356716"
+  },
+  {
+    "user_email": "admin@example.com",
+    "input_data": {
+      "age": 35,
+      "bmi": 24.0,
+      "gender": "Male",
+      "smoker": "No",
+      "region": "East",
+      "premium_annual_inr": 25000.0
+    },
+    "prediction": 18000.0,
+    "confidence": 0.78,
+    "created_at": "2025-09-29T13:01:04.373282"
+  },
+  {
+    "user_email": "user1@example.com",
+    "input_data": {
+      "age": 25,
+      "bmi": 22.0,
+      "gender": "Male",
+      "smoker": "No",
+      "region": "North",
+      "premium_annual_inr": 15000.0
+    },
+    "prediction": 12000.0,
+    "confidence": 0.85,
+    "created_at": "2025-09-29T13:02:09.203245"
+  },
+  {
+    "user_email": "user1@example.com",
+    "input_data": {
+      "age": 26,
+      "bmi": 23.0,
+      "gender": "Male",
+      "smoker": "No",
+      "region": "North",
+      "premium_annual_inr": 16000.0
+    },
+    "prediction": 13000.0,
+    "confidence": 0.87,
+    "created_at": "2025-09-29T13:02:09.215832"
+  },
+  {
+    "user_email": "user2@example.com",
+    "input_data": {
+      "age": 45,
+      "bmi": 28.5,
+      "gender": "Female",
+      "smoker": "Yes",
+      "region": "South",
+      "premium_annual_inr": 35000.0
+    },
+    "prediction": 45000.0,
+    "confidence": 0.92,
+    "created_at": "2025-09-29T13:02:09.234235"
+  },
+  {
+    "user_email": "user2@example.com",
+    "input_data": {
+      "age": 46,
+      "bmi": 29.0,
+      "gender": "Female",
+      "smoker": "Yes",
+      "region": "South",
+      "premium_annual_inr": 36000.0
+    },
+    "prediction": 47000.0,
+    "confidence": 0.9,
+    "created_at": "2025-09-29T13:02:09.248400"
+  },
+  {
+    "user_email": "admin@example.com",
+    "input_data": {
+      "age": 35,
+      "bmi": 24.0,
+      "gender": "Male",
+      "smoker": "No",
+      "region": "East",
+      "premium_annual_inr": 25000.0
+    },
+    "prediction": 18000.0,
+    "confidence": 0.78,
+    "created_at": "2025-09-29T13:02:09.272079"
+  },
+  {
+    "user_email": "gokrishna98@gmail.com",
+    "input_data": {
+      "age": 25,
+      "bmi": 41.2,
+      "gender": "Male",
+      "smoker": "No",
+      "region": "West",
+      "premium_annual_inr": 50000.0
+    },
+    "prediction": 22698.173523644404,
+    "confidence": 0.0001773894956739769,
+    "created_at": "2025-09-29T13:14:35.437107"
+  }
+]
