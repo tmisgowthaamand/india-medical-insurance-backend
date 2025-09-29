@@ -1007,19 +1007,10 @@ def get_claims_analysis():
         }).to_dict()
         
         # Region analysis
-        region_stats = df.groupby('region').agg({
+        region_analysis = df.groupby('region').agg({
             'claim_amount_inr': ['mean', 'count'],
             'premium_annual_inr': 'mean'
-        })
-        
-        # Restructure region analysis to match frontend expectations
-        region_analysis = {
-            'claim_amount_inr': {
-                'mean': region_stats[('claim_amount_inr', 'mean')].to_dict(),
-                'count': region_stats[('claim_amount_inr', 'count')].to_dict()
-            },
-            'premium_annual_inr': region_stats[('premium_annual_inr', 'mean')].to_dict()
-        }
+        }).to_dict()
         
         # Smoker analysis
         smoker_analysis = df.groupby('smoker').agg({
@@ -1103,19 +1094,10 @@ async def get_live_claims_analysis():
         }).to_dict()
         
         # Region analysis
-        region_stats = df.groupby('region').agg({
+        region_analysis = df.groupby('region').agg({
             'claim_amount_inr': ['mean', 'count'],
             'premium_annual_inr': 'mean'
-        })
-        
-        # Restructure region analysis to match frontend expectations
-        region_analysis = {
-            'claim_amount_inr': {
-                'mean': region_stats[('claim_amount_inr', 'mean')].to_dict(),
-                'count': region_stats[('claim_amount_inr', 'count')].to_dict()
-            },
-            'premium_annual_inr': region_stats[('premium_annual_inr', 'mean')].to_dict()
-        }
+        }).to_dict()
         
         # Smoker analysis
         smoker_analysis = df.groupby('smoker').agg({
@@ -1178,19 +1160,10 @@ async def get_user_claims_analysis(current_user: str = Depends(get_current_user_
         }).to_dict()
         
         # Region analysis
-        region_stats = df.groupby('region').agg({
+        region_analysis = df.groupby('region').agg({
             'claim_amount_inr': ['mean', 'count'],
             'premium_annual_inr': 'mean'
-        })
-        
-        # Restructure region analysis to match frontend expectations
-        region_analysis = {
-            'claim_amount_inr': {
-                'mean': region_stats[('claim_amount_inr', 'mean')].to_dict(),
-                'count': region_stats[('claim_amount_inr', 'count')].to_dict()
-            },
-            'premium_annual_inr': region_stats[('premium_annual_inr', 'mean')].to_dict()
-        }
+        }).to_dict()
         
         # Smoker analysis
         smoker_analysis = df.groupby('smoker').agg({
