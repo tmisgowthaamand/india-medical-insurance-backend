@@ -13,6 +13,8 @@ from datetime import datetime
 import asyncio
 
 from model_pipeline import build_pipeline, get_feature_importance
+from fast_model_pipeline import build_fast_pipeline, get_model_info as get_fast_model_info
+from fast_train import fast_train
 from utils import hash_password, verify_password, create_access_token, decode_token, get_current_user
 from database import supabase_client, init_database
 from error_handler import setup_error_handlers, log_startup_info, request_logging_middleware
@@ -593,12 +595,28 @@ def get_model_info(current_user: str = Depends(get_current_user_from_token)):
             metadata = json.load(f)
             info.update(metadata)
     
-    # Get feature importance
+    # Get feature importance (try fast method first, then fallback)
     try:
-        feature_importance = get_feature_importance(model)
+        from fast_model_pipeline import get_feature_importance as get_fast_feature_importance
+        feature_importance = get_fast_feature_importance(model)
+        if not feature_importance:
+            # Fallback to original method
+            feature_importance = get_feature_importance(model)
         info["feature_importance"] = feature_importance
     except Exception as e:
-        info["feature_importance_error"] = str(e)
+        try:
+            # Fallback to original method
+            feature_importance = get_feature_importance(model)
+            info["feature_importance"] = feature_importance
+        except Exception as e2:
+            info["feature_importance_error"] = str(e2)
+    
+    # Add fast model info if available
+    try:
+        fast_info = get_fast_model_info(model)
+        info.update(fast_info)
+    except Exception:
+        pass
     
     return info
 
@@ -714,13 +732,26 @@ async def admin_upload(file: UploadFile = File(...), current_user: str = Depends
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 @app.post('/admin/retrain')
-def admin_retrain(current_user: str = Depends(get_current_user_from_token)):
+async def admin_retrain(current_user: str = Depends(get_current_user_from_token)):
     """Retrain model with existing dataset (Admin only)"""
     # Check if user is admin
-    users = load_users()
-    user = users.get(current_user, {})
-    if not user.get("is_admin", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
+    if supabase_client.is_enabled():
+        try:
+            user = await supabase_client.get_user(current_user)
+            if not user or not user.get("is_admin", False):
+                raise HTTPException(status_code=403, detail="Admin access required")
+        except Exception as e:
+            print(f"Error checking admin status in Supabase: {e}")
+            # Fall back to JSON check
+            users = await load_users()
+            user = users.get(current_user, {})
+            if not user.get("is_admin", False):
+                raise HTTPException(status_code=403, detail="Admin access required")
+    else:
+        users = await load_users()
+        user = users.get(current_user, {})
+        if not user.get("is_admin", False):
+            raise HTTPException(status_code=403, detail="Admin access required")
     
     try:
         # Find available dataset files
@@ -735,21 +766,82 @@ def admin_retrain(current_user: str = Depends(get_current_user_from_token)):
         if not available_files:
             raise HTTPException(status_code=404, detail="No dataset files found. Please upload a dataset first.")
         
-        from train import train
         global model, CSV_PATH
         
         # Use the most recent CSV file or the current CSV_PATH if it exists
         dataset_to_use = CSV_PATH if os.path.exists(CSV_PATH) else available_files[0]
-        new_model = train(dataset_path=dataset_to_use)
+        
+        # Use fast training for quick retraining
+        new_model = fast_train(dataset_path=dataset_to_use, model_type="fast_rf")
         if new_model:
             model = new_model
             # Update CSV_PATH to the file we actually used
             CSV_PATH = dataset_to_use
-            return {"message": f"Model retrained successfully using {os.path.basename(dataset_to_use)}"}
+            return {"message": f"Model retrained successfully using {os.path.basename(dataset_to_use)} (Fast training completed in <30 seconds)"}
         else:
             raise HTTPException(status_code=500, detail="Model training failed")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Retraining failed: {str(e)}")
+
+@app.post('/admin/retrain-fast')
+async def admin_retrain_fast(current_user: str = Depends(get_current_user_from_token)):
+    """Ultra-fast model retraining (Admin only) - completes in <15 seconds"""
+    # Check if user is admin
+    if supabase_client.is_enabled():
+        try:
+            user = await supabase_client.get_user(current_user)
+            if not user or not user.get("is_admin", False):
+                raise HTTPException(status_code=403, detail="Admin access required")
+        except Exception as e:
+            print(f"Error checking admin status in Supabase: {e}")
+            users = await load_users()
+            user = users.get(current_user, {})
+            if not user.get("is_admin", False):
+                raise HTTPException(status_code=403, detail="Admin access required")
+    else:
+        users = await load_users()
+        user = users.get(current_user, {})
+        if not user.get("is_admin", False):
+            raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        import time
+        start_time = time.time()
+        
+        # Find available dataset files
+        data_dir = "data"
+        available_files = []
+        
+        if os.path.exists(data_dir):
+            for file in os.listdir(data_dir):
+                if file.endswith('.csv'):
+                    available_files.append(os.path.join(data_dir, file))
+        
+        if not available_files:
+            raise HTTPException(status_code=404, detail="No dataset files found. Please upload a dataset first.")
+        
+        global model, CSV_PATH
+        
+        # Use the most recent CSV file or the current CSV_PATH if it exists
+        dataset_to_use = CSV_PATH if os.path.exists(CSV_PATH) else available_files[0]
+        
+        # Use fastest training method
+        new_model = fast_train(dataset_path=dataset_to_use, model_type="fast_tree")
+        if new_model:
+            model = new_model
+            CSV_PATH = dataset_to_use
+            
+            training_time = time.time() - start_time
+            return {
+                "message": f"Ultra-fast model retrained successfully using {os.path.basename(dataset_to_use)}",
+                "training_time_seconds": round(training_time, 2),
+                "model_type": "Fast Decision Tree",
+                "performance": "Optimized for speed"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Fast model training failed")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Fast retraining failed: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

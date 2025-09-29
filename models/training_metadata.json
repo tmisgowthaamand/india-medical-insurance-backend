@@ -1,11 +1,11 @@
 {
-  "training_date": "2025-09-26T13:15:34.629247",
-  "training_samples": 80,
-  "test_samples": 20,
-  "train_rmse": 2785.135314737368,
-  "test_rmse": 5758.7127928320715,
-  "train_r2": 0.9074868581026628,
-  "test_r2": 0.515032022116875,
+  "training_date": "2025-09-29T11:28:51.037144",
+  "training_samples": 85,
+  "test_samples": 15,
+  "train_rmse": 5230.309318028229,
+  "test_rmse": 4842.854552369773,
+  "train_r2": 0.6710322730097988,
+  "test_r2": 0.6373644288687099,
   "features": [
     "age",
     "bmi",
@@ -13,5 +13,13 @@
     "smoker",
     "region",
     "premium_annual_inr"
-  ]
+  ],
+  "model_type": "RandomForestRegressor",
+  "training_time_seconds": 0.13,
+  "total_time_seconds": 0.21,
+  "optimized_for": "Speed",
+  "training_time": "Fast (< 30 seconds)",
+  "n_estimators": 50,
+  "max_depth": 8,
+  "n_jobs": -1
 }
