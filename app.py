@@ -84,7 +84,7 @@ async def startup_event():
 async def retrain_compatible_model():
     """Retrain model with compatible parameters"""
     try:
-        print("🔧 Training compatible model...")
+        print("🔧 Training compatible model with scikit-learn compatibility...")
         
         # Find dataset
         data_dir = "data"
@@ -95,10 +95,31 @@ async def retrain_compatible_model():
         
         if dataset_files:
             dataset_path = os.path.join(data_dir, dataset_files[0])
+            print(f"📊 Using dataset: {dataset_path}")
+            
+            # Use fast_rf which has criterion='squared_error' for compatibility
             new_model = fast_train(dataset_path=dataset_path, model_type="fast_rf")
             
             if new_model:
                 print("✅ Compatible model trained successfully")
+                
+                # Test the model to ensure no monotonic_cst error
+                try:
+                    test_data = pd.DataFrame({
+                        'age': [30],
+                        'bmi': [25.0],
+                        'gender': ['Male'],
+                        'smoker': ['No'],
+                        'region': ['North'],
+                        'premium_annual_inr': [20000.0]
+                    })
+                    test_prediction = new_model.predict(test_data)[0]
+                    print(f"✅ Model compatibility test passed: ₹{test_prediction:.2f}")
+                except Exception as test_e:
+                    print(f"⚠️ Model compatibility test failed: {test_e}")
+                    if "monotonic_cst" in str(test_e):
+                        print("🚨 Still getting monotonic_cst error - this should not happen")
+                
                 return new_model
             else:
                 print("❌ Model training failed")
@@ -109,6 +130,8 @@ async def retrain_compatible_model():
             
     except Exception as e:
         print(f"❌ Error training compatible model: {e}")
+        import traceback
+        print(f"Full traceback: {traceback.format_exc()}")
         return None
 
 @app.on_event("shutdown")
