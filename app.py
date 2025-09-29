@@ -39,18 +39,39 @@ async def startup_event():
         await init_database()
         print("✅ Database initialization completed")
         
-        # Load model if exists
+        # Load model if exists, with compatibility check
         global model
         if os.path.exists(MODEL_PATH):
             try:
-                model = load(MODEL_PATH)
-                print("✅ Model loaded successfully")
+                test_model = load(MODEL_PATH)
+                
+                # Test for compatibility issues by trying a prediction
+                try:
+                    import pandas as pd
+                    test_df = pd.DataFrame({
+                        'age': [30], 'bmi': [25.0], 'gender': ['Male'],
+                        'smoker': ['No'], 'region': ['North'], 'premium_annual_inr': [15000.0]
+                    })
+                    _ = test_model.predict(test_df)
+                    model = test_model
+                    print("✅ Compatible model loaded and tested successfully")
+                except AttributeError as attr_e:
+                    if 'monotonic_cst' in str(attr_e):
+                        print("⚠️ Incompatible model detected (monotonic_cst error), retraining...")
+                        model = await retrain_compatible_model()
+                    else:
+                        print(f"⚠️ Model attribute error, retraining: {attr_e}")
+                        model = await retrain_compatible_model()
+                except Exception as pred_e:
+                    print(f"⚠️ Model prediction test failed, retraining: {pred_e}")
+                    model = await retrain_compatible_model()
+                    
             except Exception as e:
-                print(f"⚠️ Error loading model: {e}")
-                model = None
+                print(f"⚠️ Error loading model, retraining: {e}")
+                model = await retrain_compatible_model()
         else:
-            print("⚠️ No model found. Please train a model first.")
-            model = None
+            print("⚠️ No model found, training new model...")
+            model = await retrain_compatible_model()
             
         print("🚀 Application startup completed successfully")
         
@@ -59,6 +80,36 @@ async def startup_event():
         import traceback
         print(f"Full traceback: {traceback.format_exc()}")
         # Don't raise the exception to allow the server to start
+
+async def retrain_compatible_model():
+    """Retrain model with compatible parameters"""
+    try:
+        print("🔧 Training compatible model...")
+        
+        # Find dataset
+        data_dir = "data"
+        dataset_files = []
+        
+        if os.path.exists(data_dir):
+            dataset_files = [f for f in os.listdir(data_dir) if f.endswith('.csv')]
+        
+        if dataset_files:
+            dataset_path = os.path.join(data_dir, dataset_files[0])
+            new_model = fast_train(dataset_path=dataset_path, model_type="fast_rf")
+            
+            if new_model:
+                print("✅ Compatible model trained successfully")
+                return new_model
+            else:
+                print("❌ Model training failed")
+                return None
+        else:
+            print("❌ No dataset found for training")
+            return None
+            
+    except Exception as e:
+        print(f"❌ Error training compatible model: {e}")
+        return None
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -415,6 +466,8 @@ def get_current_user_info(current_user: str = Depends(get_current_user_from_toke
 @app.post('/predict', response_model=PredictResponse)
 async def predict(payload: PredictIn, current_user: str = Depends(get_current_user_from_token)):
     """Make insurance claim prediction"""
+    global model
+    
     if model is None:
         raise HTTPException(status_code=503, detail='Model not loaded. Please train the model first.')
     
@@ -464,6 +517,31 @@ async def predict(payload: PredictIn, current_user: str = Depends(get_current_us
             confidence=confidence,
             input_data=input_data
         )
+    
+    except AttributeError as e:
+        if 'monotonic_cst' in str(e):
+            print("🔧 Detected monotonic_cst error, retraining model...")
+            try:
+                # Retrain model with compatible parameters
+                model = await retrain_compatible_model()
+                if model:
+                    # Retry prediction with new model
+                    df = pd.DataFrame([input_data])
+                    prediction = model.predict(df)[0]
+                    confidence = min(0.95, max(0.6, 1.0 - abs(prediction - 20000) / 50000))
+                    final_prediction = max(0, float(prediction))
+                    
+                    return PredictResponse(
+                        prediction=final_prediction,
+                        confidence=confidence,
+                        input_data=input_data
+                    )
+                else:
+                    raise HTTPException(status_code=503, detail='Model retraining failed. Please contact support.')
+            except Exception as retrain_error:
+                raise HTTPException(status_code=500, detail=f"Model compatibility error and retraining failed: {str(retrain_error)}")
+        else:
+            raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
