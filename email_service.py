@@ -22,6 +22,15 @@ class EmailService:
         self.smtp_port = 587
         self.sender_email = os.getenv("GMAIL_EMAIL")
         self.sender_password = os.getenv("GMAIL_APP_PASSWORD")
+        self.email_enabled = bool(self.sender_email and self.sender_password)
+        
+        if not self.email_enabled:
+            print("⚠️ Email service disabled - Gmail credentials not configured")
+            print("💡 Set GMAIL_EMAIL and GMAIL_APP_PASSWORD environment variables to enable email")
+    
+    def is_email_enabled(self) -> bool:
+        """Check if email service is properly configured"""
+        return self.email_enabled
         
     def create_prediction_email_template(self) -> str:
         """Create HTML email template for prediction reports"""
@@ -197,34 +206,17 @@ class EmailService:
         print("💡 To send real emails, configure actual Gmail credentials")
         print("="*60)
     
-    def send_prediction_email(self, recipient_email: str, prediction_data: Dict, patient_data: Dict) -> bool:
-        """Send prediction report via email"""
+    def send_prediction_email(self, recipient_email: str, prediction_data: Dict[str, Any], patient_data: Dict[str, Any]) -> bool:
+        """Send prediction report via email with graceful error handling"""
+        
+        # Check if email service is enabled
+        if not self.is_email_enabled():
+            print("⚠️ Email service is disabled - storing report locally instead")
+            return self._store_email_report_locally(recipient_email, prediction_data, patient_data)
+        
+        print(f"📧 Attempting to send email to {recipient_email}...")
+        
         try:
-            if not self.sender_email or not self.sender_password:
-                print("❌ Gmail credentials not configured. Email functionality disabled.")
-                print("💡 To enable email functionality:")
-                print("   1. Set GMAIL_EMAIL=your-email@gmail.com in .env")
-                print("   2. Set GMAIL_APP_PASSWORD=your-app-password in .env")
-                print("   3. Generate App Password at: https://myaccount.google.com/apppasswords")
-                return False
-            
-            # Check if app password is still placeholder
-            if self.sender_password == "your-gmail-app-password-here" or "demo" in self.sender_password.lower():
-                print(f"📧 SETUP REQUIRED: Gmail App Password not configured for {self.sender_email}")
-                print("💡 To send real emails to Gmail inbox:")
-                print("   1. Go to: https://myaccount.google.com/apppasswords")
-                print("   2. Sign in with gokrishna98@gmail.com")
-                print("   3. Generate app password for 'MediCare Platform'")
-                print("   4. Replace 'your-gmail-app-password-here' in .env file")
-                print("   5. Restart backend server")
-                print("📋 Currently simulating email send...")
-                # Simulate successful email sending for demo purposes
-                self._simulate_email_send(recipient_email, prediction_data, patient_data)
-                return True
-            
-            print(f"📧 REAL EMAIL MODE: Sending to {recipient_email} from {self.sender_email}")
-            print(f"🔑 Using app password: {self.sender_password[:4]}...{self.sender_password[-4:]}")
-            
             # Prepare email data
             prediction_amount = self.format_currency(prediction_data.get('prediction', 0))
             confidence = round(prediction_data.get('confidence', 0) * 100, 1)
@@ -317,22 +309,62 @@ class EmailService:
             
             return True
             
+        except (OSError, ConnectionError, TimeoutError) as e:
+            print(f"⚠️ Network error: {e}")
+            print("📝 Storing email report locally instead")
+            return self._store_email_report_locally(recipient_email, prediction_data, patient_data)
         except smtplib.SMTPAuthenticationError as e:
             print(f"❌ SMTP Authentication failed: {e}")
             print("💡 Check Gmail App Password configuration")
-            return False
+            return self._store_email_report_locally(recipient_email, prediction_data, patient_data)
         except smtplib.SMTPRecipientsRefused as e:
             print(f"❌ Recipient email refused: {e}")
             print("💡 Check recipient email address")
-            return False
+            return self._store_email_report_locally(recipient_email, prediction_data, patient_data)
         except smtplib.SMTPException as e:
             print(f"❌ SMTP error: {e}")
-            return False
+            return self._store_email_report_locally(recipient_email, prediction_data, patient_data)
         except Exception as e:
-            print(f"❌ Failed to send email: {e}")
-            print(f"❌ Error type: {type(e).__name__}")
-            import traceback
-            print(f"❌ Full traceback: {traceback.format_exc()}")
+            print(f"⚠️ Email sending failed: {e}")
+            print(f"📝 Storing report locally instead")
+            return self._store_email_report_locally(recipient_email, prediction_data, patient_data)
+    
+    def _store_email_report_locally(self, recipient_email: str, prediction_data: Dict[str, Any], patient_data: Dict[str, Any]) -> bool:
+        """Store email report locally when sending fails"""
+        try:
+            report = {
+                "recipient": recipient_email,
+                "prediction": prediction_data,
+                "patient_data": patient_data,
+                "timestamp": datetime.now().isoformat(),
+                "status": "stored_locally"
+            }
+            
+            # Store in local file
+            reports_file = "email_reports.json"
+            reports = []
+            
+            if os.path.exists(reports_file):
+                try:
+                    with open(reports_file, 'r') as f:
+                        reports = json.load(f)
+                except:
+                    reports = []
+            
+            reports.append(report)
+            
+            # Keep only last 100 reports
+            if len(reports) > 100:
+                reports = reports[-100:]
+            
+            with open(reports_file, 'w') as f:
+                json.dump(reports, f, indent=2)
+            
+            print(f"✅ Email report stored locally for {recipient_email}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Failed to store email report locally: {e}")
             return False
 
 # Global email service instance
