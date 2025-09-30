@@ -1,8 +1,25 @@
 {
-  "training_date": "2025-09-30T10:40:03.388896",
-  "scikit_learn_version": "1.3.2",
-  "model_type": "fast_rf",
-  "criterion": "squared_error",
-  "compatibility_fix": "monotonic_cst_error_fix",
-  "optimized_for": "render_deployment"
+  "training_date": "2025-09-30T10:45:45.907576",
+  "training_samples": 68,
+  "test_samples": 13,
+  "train_rmse": 5406.663165802635,
+  "test_rmse": 5872.848883548457,
+  "train_r2": 0.4226876284292036,
+  "test_r2": 0.04707716700258546,
+  "features": [
+    "age",
+    "bmi",
+    "gender",
+    "smoker",
+    "region",
+    "premium_annual_inr"
+  ],
+  "model_type": "RandomForestRegressor",
+  "training_time_seconds": 0.16,
+  "total_time_seconds": 0.31,
+  "optimized_for": "Speed",
+  "training_time": "Fast (< 30 seconds)",
+  "n_estimators": 50,
+  "max_depth": 8,
+  "n_jobs": -1
 }

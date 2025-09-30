@@ -2,7 +2,7 @@
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Header
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from joblib import load, dump
 import pandas as pd
@@ -18,6 +18,7 @@ from fast_train import fast_train
 from utils import hash_password, verify_password, create_access_token, decode_token, get_current_user
 from database import supabase_client, init_database
 from error_handler import setup_error_handlers, log_startup_info, request_logging_middleware
+from email_service import email_service
 
 app = FastAPI(title="India Medical Insurance ML Dashboard", version="1.0.0")
 
@@ -219,6 +220,7 @@ class PredictIn(BaseModel):
     smoker: str
     region: str
     premium_annual_inr: Optional[float] = None
+    email: Optional[str] = None
 
 class PredictResponse(BaseModel):
     prediction: float
@@ -239,7 +241,15 @@ class ClaimsAnalysis(BaseModel):
     age_groups: dict
     region_analysis: dict
     smoker_analysis: dict
-    premium_vs_claims: dict
+
+class EmailPredictionRequest(BaseModel):
+    email: EmailStr
+    prediction: dict
+    patient_data: dict
+
+class EmailResponse(BaseModel):
+    success: bool
+    message: str
 
 # Helper functions
 def get_current_user_from_token(authorization: str = Header(None)):
@@ -586,6 +596,18 @@ async def predict(payload: PredictIn, current_user: str = Depends(get_current_us
             confidence = 0.5  # Default confidence
         
         final_prediction = float(max(0, prediction))
+        
+        # Save email to users table if provided
+        if payload.email and payload.email.strip():
+            try:
+                if supabase_client.is_enabled():
+                    email_result = await supabase_client.save_email_to_users(payload.email.strip())
+                    if email_result.get("success"):
+                        print(f"✅ Email {payload.email} saved to users table")
+                    else:
+                        print(f"⚠️ Failed to save email to users table: {email_result.get('error', 'Unknown error')}")
+            except Exception as e:
+                print(f"⚠️ Error saving email to users table: {e}")
         
         # Store prediction in Supabase or local file
         try:
@@ -1593,6 +1615,50 @@ async def admin_retrain_fast(current_user: str = Depends(get_current_user_from_t
             raise HTTPException(status_code=500, detail="Fast model training failed")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Fast retraining failed: {str(e)}")
+
+@app.post("/send-prediction-email", response_model=EmailResponse)
+async def send_prediction_email(request: EmailPredictionRequest):
+    """
+    Send prediction report via email
+    """
+    try:
+        print(f"📧 Sending prediction email to: {request.email}")
+        
+        # Save email to users table if it doesn't exist
+        try:
+            if supabase_client.is_enabled():
+                email_result = await supabase_client.save_email_to_users(str(request.email))
+                if email_result.get("success"):
+                    print(f"✅ Email {request.email} saved to users table")
+                else:
+                    print(f"⚠️ Failed to save email to users table: {email_result.get('error', 'Unknown error')}")
+        except Exception as e:
+            print(f"⚠️ Error saving email to users table: {e}")
+        
+        # Send email using the email service
+        success = email_service.send_prediction_email(
+            recipient_email=str(request.email),
+            prediction_data=request.prediction,
+            patient_data=request.patient_data
+        )
+        
+        if success:
+            return EmailResponse(
+                success=True,
+                message=f"Prediction report sent successfully to {request.email}"
+            )
+        else:
+            raise HTTPException(
+                status_code=500, 
+                detail="Failed to send email. Please check email configuration."
+            )
+            
+    except Exception as e:
+        print(f"❌ Email sending error: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Email sending failed: {str(e)}"
+        )
 
 if __name__ == "__main__":
     import uvicorn

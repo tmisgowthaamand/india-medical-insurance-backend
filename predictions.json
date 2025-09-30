@@ -236,5 +236,19 @@
     "prediction": 30716.76631134552,
     "confidence": 0.00012821886274344107,
     "created_at": "2025-09-30T10:36:51.858151"
+  },
+  {
+    "user_email": "gokrishna98@gmail.com",
+    "input_data": {
+      "age": 25,
+      "bmi": 25.0,
+      "gender": "Male",
+      "smoker": "Yes",
+      "region": "South",
+      "premium_annual_inr": 27000.0
+    },
+    "prediction": 28359.639749799222,
+    "confidence": 0.0001297739470449157,
+    "created_at": "2025-09-30T10:44:08.782971"
   }
 ]

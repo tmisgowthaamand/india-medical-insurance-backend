@@ -33,14 +33,19 @@ class SupabaseClient:
             try:
                 # Try different initialization methods for compatibility
                 try:
-                    # Method 1: Named parameters (newer versions)
-                    self.client: Client = create_client(
-                        supabase_url=self.url,
-                        supabase_key=self.service_role_key
-                    )
-                except TypeError:
-                    # Method 2: Positional parameters (older versions)
+                    # Method 1: Positional parameters (most compatible)
                     self.client: Client = create_client(self.url, self.service_role_key)
+                except Exception as e1:
+                    try:
+                        # Method 2: Named parameters (newer versions)
+                        self.client: Client = create_client(
+                            supabase_url=self.url,
+                            supabase_key=self.service_role_key
+                        )
+                    except Exception as e2:
+                        # Method 3: Try with minimal options
+                        import supabase
+                        self.client = supabase.Client(self.url, self.service_role_key)
                 
                 self.enabled = True
                 logger.info("Supabase client initialized successfully")
@@ -100,6 +105,34 @@ class SupabaseClient:
         except Exception as e:
             logger.error(f"Error getting users: {e}")
             return []
+    
+    async def save_email_to_users(self, email: str) -> Dict:
+        """Save email address to users table if it doesn't exist"""
+        if not self.is_enabled():
+            return {"error": "Database not available"}
+        
+        try:
+            # Check if user already exists
+            existing_user = await self.get_user(email)
+            if existing_user:
+                logger.info(f"Email {email} already exists in users table")
+                return {"success": True, "message": "Email already exists"}
+            
+            # Create new user entry with email only (no password for email-only users)
+            user_data = {
+                "email": email,
+                "password": None,  # No password for email-only users
+                "is_admin": False,
+                "created_at": datetime.now().isoformat(),
+                "email_only": True  # Flag to indicate this is an email-only user
+            }
+            
+            result = self.client.table("users").insert(user_data).execute()
+            logger.info(f"Email {email} saved to users table successfully")
+            return {"success": True, "data": result.data}
+        except Exception as e:
+            logger.error(f"Error saving email to users table: {e}")
+            return {"error": str(e)}
     
     # Dataset Management
     async def store_dataset(self, filename: str, data: pd.DataFrame, metadata: Dict = None) -> Dict:
