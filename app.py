@@ -395,6 +395,12 @@ def cors_test():
         "timestamp": datetime.now().isoformat()
     }
 
+@app.get("/favicon.ico")
+def favicon():
+    """Handle favicon requests to prevent 405 errors"""
+    from fastapi.responses import Response
+    return Response(content="", media_type="image/x-icon", status_code=204)
+
 @app.options("/{path:path}")
 def options_handler(path: str):
     """Handle OPTIONS requests for CORS"""
@@ -405,6 +411,21 @@ def head_handler(path: str):
     """Handle HEAD requests for health checks and monitoring"""
     # HEAD requests should return empty body with proper status
     return {}
+
+@app.get("/{path:path}")
+def catch_all_handler(path: str):
+    """Catch-all handler for undefined GET routes"""
+    if path in ["robots.txt", "sitemap.xml"]:
+        from fastapi.responses import PlainTextResponse
+        return PlainTextResponse("", status_code=204)
+    
+    return {
+        "message": f"Endpoint /{path} not found",
+        "available_endpoints": [
+            "/", "/health", "/cors-test", "/signup", "/login", 
+            "/predict", "/stats", "/model-info", "/docs"
+        ]
+    }
 
 @app.post('/signup', response_model=dict)
 async def signup(payload: UserIn):
