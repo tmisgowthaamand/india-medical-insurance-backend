@@ -213,17 +213,9 @@ def ensure_dataset_exists():
 # Ensure dataset exists
 ensure_dataset_exists()
 
-# Load model on startup if exists
-if os.path.exists(MODEL_PATH):
-    try:
-        model = load(MODEL_PATH)
-        print("Model loaded successfully")
-    except Exception as e:
-        print(f"Error loading model: {e}")
-else:
-    print("No model found. Please train a model first.")
+# Initialize model variable (will be loaded in startup event)
+model = None
 
-# Pydantic models
 class UserIn(BaseModel):
     email: str
     password: str
