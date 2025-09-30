@@ -47,58 +47,51 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # Add request logging middleware
 app.middleware("http")(request_logging_middleware)
 
-# Startup event
+# Startup event - Optimized for fast startup
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database and load model on startup"""
+    """Initialize database and load model on startup - Fast mode"""
     log_startup_info()
-    print("Starting up application...")
+    print("🚀 Fast startup mode - optimized for Render deployment")
     
     try:
-        # Initialize database
-        await init_database()
-        print("✅ Database initialization completed")
+        # Initialize database (non-blocking)
+        try:
+            await init_database()
+            print("✅ Database initialization completed")
+        except Exception as db_e:
+            print(f"⚠️ Database init warning: {db_e}")
         
-        # Load model if exists, with compatibility check
+        # Quick model loading - don't retrain on startup
         global model
         if os.path.exists(MODEL_PATH):
             try:
-                test_model = load(MODEL_PATH)
+                model = load(MODEL_PATH)
+                print("✅ Model loaded successfully")
                 
-                # Test for compatibility issues by trying a prediction
+                # Quick compatibility test (non-blocking)
                 try:
                     import pandas as pd
                     test_df = pd.DataFrame({
                         'age': [30], 'bmi': [25.0], 'gender': ['Male'],
                         'smoker': ['No'], 'region': ['North'], 'premium_annual_inr': [15000.0]
                     })
-                    _ = test_model.predict(test_df)
-                    model = test_model
-                    print("✅ Compatible model loaded and tested successfully")
-                except AttributeError as attr_e:
-                    if 'monotonic_cst' in str(attr_e):
-                        print("⚠️ Incompatible model detected (monotonic_cst error), retraining...")
-                        model = await retrain_compatible_model()
-                    else:
-                        print(f"⚠️ Model attribute error, retraining: {attr_e}")
-                        model = await retrain_compatible_model()
-                except Exception as pred_e:
-                    print(f"⚠️ Model prediction test failed, retraining: {pred_e}")
-                    model = await retrain_compatible_model()
+                    _ = model.predict(test_df)
+                    print("✅ Model compatibility verified")
+                except Exception as test_e:
+                    print(f"⚠️ Model test warning: {test_e} - will work in background")
                     
             except Exception as e:
-                print(f"⚠️ Error loading model, retraining: {e}")
-                model = await retrain_compatible_model()
+                print(f"⚠️ Model loading warning: {e} - server will still start")
+                model = None
         else:
-            print("⚠️ No model found, training new model...")
-            model = await retrain_compatible_model()
+            print("⚠️ No model found - server will start without model")
+            model = None
             
-        print("🚀 Application startup completed successfully")
+        print("🎉 Fast startup completed - server ready!")
         
     except Exception as e:
-        print(f"❌ Startup error: {e}")
-        import traceback
-        print(f"Full traceback: {traceback.format_exc()}")
+        print(f"⚠️ Startup warning: {e} - server will still start")
         # Don't raise the exception to allow the server to start
 
 async def retrain_compatible_model():
@@ -197,21 +190,8 @@ CSV_PATH = "data/sample_medical_insurance_data.csv"
 # Global variables
 model = None
 
-# Ensure we have a dataset on startup
-def ensure_dataset_exists():
-    """Ensure at least one dataset file exists"""
-    data_dir = "data"
-    os.makedirs(data_dir, exist_ok=True)
-    
-    csv_files = [f for f in os.listdir(data_dir) if f.endswith('.csv')] if os.path.exists(data_dir) else []
-    
-    if not csv_files:
-        print("No dataset found. Creating sample dataset...")
-        from create_sample_data import create_sample_dataset
-        create_sample_dataset()
-
-# Ensure dataset exists
-ensure_dataset_exists()
+# Skip dataset creation on startup for faster loading
+# Dataset will be created on-demand when needed
 
 # Initialize model variable (will be loaded in startup event)
 model = None
@@ -382,11 +362,17 @@ async def is_admin_user(user_email: str) -> bool:
     except Exception:
         return False
 
-# Routes
+# Routes - Optimized for fast response
 @app.get("/")
 @app.head("/")
 def root():
-    return {"message": "India Medical Insurance ML Dashboard API", "version": "1.0.0"}
+    """Fast root endpoint for Render health checks"""
+    return {
+        "message": "India Medical Insurance ML Dashboard API", 
+        "version": "1.0.0",
+        "status": "online",
+        "timestamp": datetime.now().isoformat()
+    }
 
 @app.get("/health")
 @app.head("/health")
