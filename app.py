@@ -152,11 +152,35 @@ async def shutdown_event():
     """Cleanup on shutdown"""
     print("Shutting down application...")
 
-# CORS middleware
-# Get allowed origins from environment variable or use default for development
+# CORS middleware - Enhanced for better compatibility
 import os
-allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "https://india-medical-insurance-frontend.vercel.app,http://localhost:3000,http://localhost:3001,*")
+
+# Get allowed origins from environment variable with comprehensive defaults
+allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "*")
 allowed_origins = [origin.strip() for origin in allowed_origins_str.split(",")]
+
+# Always ensure comprehensive CORS support
+essential_origins = [
+    "http://localhost:3000",
+    "http://localhost:3001", 
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    "https://india-medical-insurance-frontend.vercel.app"
+]
+
+# Force wildcard for maximum compatibility if not already present
+if "*" not in allowed_origins:
+    # Add essential origins
+    for origin in essential_origins:
+        if origin not in allowed_origins:
+            allowed_origins.append(origin)
+    
+    # Add wildcard for full compatibility
+    allowed_origins.append("*")
+
+# Ensure wildcard is always included for maximum compatibility
+if "*" not in allowed_origins:
+    allowed_origins.append("*")
 
 print(f"CORS allowed origins: {allowed_origins}")  # Debug log
 
@@ -164,7 +188,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
     allow_headers=[
         "*",
         "Authorization",
@@ -173,14 +197,44 @@ app.add_middleware(
         "Accept",
         "Origin",
         "Access-Control-Request-Method",
-        "Access-Control-Request-Headers"
+        "Access-Control-Request-Headers",
+        "Cache-Control",
+        "Pragma"
     ],
     expose_headers=[
         "Access-Control-Allow-Origin",
-        "Access-Control-Allow-Methods",
-        "Access-Control-Allow-Headers"
+        "Access-Control-Allow-Methods", 
+        "Access-Control-Allow-Headers",
+        "Access-Control-Allow-Credentials"
     ]
 )
+
+# Additional CORS middleware for maximum compatibility
+@app.middleware("http")
+async def add_cors_headers(request, call_next):
+    """Add CORS headers to all responses"""
+    response = await call_next(request)
+    
+    # Get origin from request
+    origin = request.headers.get("origin")
+    
+    # Always allow CORS for essential origins
+    allowed_origins_list = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000", 
+        "http://127.0.0.1:3001",
+        "https://india-medical-insurance-frontend.vercel.app"
+    ]
+    
+    if origin in allowed_origins_list or "*" in allowed_origins:
+        response.headers["Access-Control-Allow-Origin"] = origin or "*"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        response.headers["Access-Control-Max-Age"] = "3600"
+    
+    return response
 
 # Configuration
 MODEL_PATH = "models/model_pipeline.pkl"
@@ -392,8 +446,19 @@ def cors_test():
     return {
         "message": "CORS test successful",
         "allowed_origins": allowed_origins,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
+        "server_status": "running"
     }
+
+@app.options("/cors-test")
+def cors_test_options():
+    """Handle CORS preflight for cors-test"""
+    return {"message": "CORS preflight OK"}
+
+@app.options("/login")
+def login_options():
+    """Handle CORS preflight for login"""
+    return {"message": "Login CORS preflight OK"}
 
 @app.get("/favicon.ico")
 def favicon():
@@ -683,7 +748,7 @@ async def predict(payload: PredictIn, current_user: str = Depends(get_current_us
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
-@app.get('/stats', response_model=StatsResponse)
+@app.get('/stats')
 async def get_stats():
     """Get dataset statistics"""
     df = None
@@ -1636,10 +1701,19 @@ async def admin_retrain_fast(current_user: str = Depends(get_current_user_from_t
 @app.post("/send-prediction-email", response_model=EmailResponse)
 async def send_prediction_email(request: EmailPredictionRequest):
     """
-    Send prediction report via email
+    Send prediction report via email with improved error handling
     """
     try:
-        print(f"📧 Sending prediction email to: {request.email}")
+        print(f"📧 Processing email request for: {request.email}")
+        
+        # Validate email format
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, str(request.email)):
+            return EmailResponse(
+                success=False,
+                message=f"Invalid email format: {request.email}"
+            )
         
         # Save email to users table if it doesn't exist
         try:
@@ -1652,41 +1726,43 @@ async def send_prediction_email(request: EmailPredictionRequest):
         except Exception as e:
             print(f"⚠️ Error saving email to users table: {e}")
         
+        # Check Gmail configuration
+        gmail_email = os.getenv("GMAIL_EMAIL")
+        gmail_password = os.getenv("GMAIL_APP_PASSWORD")
+        
+        if not gmail_email or not gmail_password:
+            print("⚠️ Gmail credentials not configured")
+            return EmailResponse(
+                success=False,
+                message="Email service not configured. Please contact administrator."
+            )
+        
         # Send email using the email service
+        print(f"📧 Attempting to send email to {request.email}...")
         success = email_service.send_prediction_email(
             recipient_email=str(request.email),
             prediction_data=request.prediction,
             patient_data=request.patient_data
         )
         
-        # Always return success since we handle failures gracefully
-        # The email service will either send the email or store it locally
-        gmail_email = os.getenv("GMAIL_EMAIL")
-        gmail_password = os.getenv("GMAIL_APP_PASSWORD")
-        
-        if not gmail_email or not gmail_password:
+        if success:
+            print(f"✅ Email sent successfully to {request.email}")
             return EmailResponse(
                 success=True,
-                message=f"Email report stored locally for {request.email}. Email service not configured."
-            )
-        elif gmail_password == "your-gmail-app-password-here" or "demo" in gmail_password.lower():
-            return EmailResponse(
-                success=True,
-                message=f"Demo mode: Email report processed for {request.email}. Check backend console for details."
+                message=f"Prediction report sent successfully to {request.email}! Check your inbox."
             )
         else:
-            # Real email mode - success could mean sent or stored locally
+            print(f"❌ Failed to send email to {request.email}")
             return EmailResponse(
-                success=True,
-                message=f"Email report processed for {request.email}. Check backend logs for delivery status."
+                success=False,
+                message=f"Failed to send email to {request.email}. Please try again or contact support."
             )
             
     except Exception as e:
-        print(f"⚠️ Email processing error: {e}")
-        # Even if there's an error, return success with local storage message
+        print(f"❌ Email processing error: {e}")
         return EmailResponse(
-            success=True,
-            message=f"Email report stored locally for {request.email} due to processing error."
+            success=False,
+            message=f"Email processing failed: {str(e)}"
         )
 
 @app.post("/test-email")
