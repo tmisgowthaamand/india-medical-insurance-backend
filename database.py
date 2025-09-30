@@ -31,21 +31,8 @@ class SupabaseClient:
             self.enabled = False
         else:
             try:
-                # Try different initialization methods for compatibility
-                try:
-                    # Method 1: Positional parameters (most compatible)
-                    self.client: Client = create_client(self.url, self.service_role_key)
-                except Exception as e1:
-                    try:
-                        # Method 2: Named parameters (newer versions)
-                        self.client: Client = create_client(
-                            supabase_url=self.url,
-                            supabase_key=self.service_role_key
-                        )
-                    except Exception as e2:
-                        # Method 3: Try with minimal options
-                        import supabase
-                        self.client = supabase.Client(self.url, self.service_role_key)
+                # Use the most compatible method - simple positional parameters
+                self.client: Client = create_client(self.url, self.service_role_key)
                 
                 self.enabled = True
                 logger.info("Supabase client initialized successfully")
@@ -288,6 +275,42 @@ class SupabaseClient:
             return result.data
         except Exception as e:
             logger.error(f"Error getting user predictions: {e}")
+            return []
+    
+    async def store_email_report(self, recipient_email: str, report_data: Dict, email_status: str = "sent") -> Dict:
+        """Store email report information"""
+        if not self.is_enabled():
+            return {"error": "Database not available"}
+        
+        try:
+            email_report = {
+                "recipient_email": recipient_email,
+                "report_data": report_data,
+                "email_status": email_status,  # "sent", "failed", "simulated"
+                "sent_at": datetime.now().isoformat()
+            }
+            
+            result = self.client.table("email_reports").insert(email_report).execute()
+            logger.info(f"Email report stored for {recipient_email}")
+            return {"success": True, "data": result.data}
+        except Exception as e:
+            logger.error(f"Error storing email report: {e}")
+            return {"error": str(e)}
+    
+    async def get_email_reports(self, recipient_email: str = None, limit: int = 50) -> List[Dict]:
+        """Get email reports, optionally filtered by recipient"""
+        if not self.is_enabled():
+            return []
+        
+        try:
+            query = self.client.table("email_reports").select("*")
+            if recipient_email:
+                query = query.eq("recipient_email", recipient_email)
+            
+            result = query.order("sent_at", desc=True).limit(limit).execute()
+            return result.data
+        except Exception as e:
+            logger.error(f"Error getting email reports: {e}")
             return []
 
 # Global instance

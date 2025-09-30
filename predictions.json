@@ -250,5 +250,75 @@
     "prediction": 28359.639749799222,
     "confidence": 0.0001297739470449157,
     "created_at": "2025-09-30T10:44:08.782971"
+  },
+  {
+    "user_email": "gokrishna98@gmail.com",
+    "input_data": {
+      "age": 35,
+      "bmi": 25.0,
+      "gender": "Female",
+      "smoker": "No",
+      "region": "South",
+      "premium_annual_inr": 29975.0
+    },
+    "prediction": 15468.259794962,
+    "confidence": 0.0002922811622169299,
+    "created_at": "2025-09-30T11:43:09.641582"
+  },
+  {
+    "user_email": "gokrishna98@gmail.com",
+    "input_data": {
+      "age": 25,
+      "bmi": 24.0,
+      "gender": "Female",
+      "smoker": "No",
+      "region": "South",
+      "premium_annual_inr": 30000.0
+    },
+    "prediction": 15135.83382382203,
+    "confidence": 0.0003182265121388091,
+    "created_at": "2025-09-30T11:45:32.761603"
+  },
+  {
+    "user_email": "gokrishna98@gmail.com",
+    "input_data": {
+      "age": 26,
+      "bmi": 23.7,
+      "gender": "Female",
+      "smoker": "No",
+      "region": "South",
+      "premium_annual_inr": 30000.0
+    },
+    "prediction": 15135.83382382203,
+    "confidence": 0.0003182265121388091,
+    "created_at": "2025-09-30T11:48:37.038774"
+  },
+  {
+    "user_email": "gokrishna98@gmail.com",
+    "input_data": {
+      "age": 25,
+      "bmi": 24.7,
+      "gender": "Female",
+      "smoker": "No",
+      "region": "South",
+      "premium_annual_inr": 30000.0
+    },
+    "prediction": 15135.83382382203,
+    "confidence": 0.0003182265121388091,
+    "created_at": "2025-09-30T12:01:57.038194"
+  },
+  {
+    "user_email": "gokrishna98@gmail.com",
+    "input_data": {
+      "age": 35,
+      "bmi": 24.0,
+      "gender": "Female",
+      "smoker": "No",
+      "region": "South",
+      "premium_annual_inr": 30000.0
+    },
+    "prediction": 15468.259794962001,
+    "confidence": 0.0002922811622169299,
+    "created_at": "2025-09-30T12:31:36.984663"
   }
 ]

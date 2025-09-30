@@ -1,7 +1,8 @@
 # app.py
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Header
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Header, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from joblib import load, dump
@@ -24,6 +25,24 @@ app = FastAPI(title="India Medical Insurance ML Dashboard", version="1.0.0")
 
 # Setup error handling
 setup_error_handlers(app)
+
+# Add validation error handler
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Handle validation errors with detailed messages"""
+    print(f"Validation error: {exc}")
+    error_details = []
+    for error in exc.errors():
+        field = error.get('loc', ['unknown'])[-1]
+        message = error.get('msg', 'Invalid value')
+        error_details.append(f"{field}: {message}")
+    
+    return JSONResponse(
+        status_code=400,
+        content={"detail": f"Validation failed: {'; '.join(error_details)}"}
+    )
 
 # Add request logging middleware
 app.middleware("http")(request_logging_middleware)
@@ -412,6 +431,7 @@ def head_handler(path: str):
 @app.post('/signup', response_model=dict)
 async def signup(payload: UserIn):
     """Register a new user"""
+    print(f"Signup attempt - Email: {payload.email}, Password length: {len(payload.password)}")  # Debug log
     # Try Supabase first
     if supabase_client.is_enabled():
         try:
@@ -421,8 +441,7 @@ async def signup(payload: UserIn):
             if not re.match(email_pattern, payload.email):
                 raise HTTPException(status_code=400, detail='Invalid email format')
             
-            if len(payload.password) < 6:
-                raise HTTPException(status_code=400, detail='Password must be at least 6 characters')
+            # Allow any password length - user's choice
             
             # Check if user already exists
             existing_user = await supabase_client.get_user(payload.email)
@@ -449,8 +468,7 @@ async def signup(payload: UserIn):
     if payload.email in users:
         raise HTTPException(status_code=400, detail='Email already exists')
     
-    if len(payload.password) < 6:
-        raise HTTPException(status_code=400, detail='Password must be at least 6 characters')
+    # Allow any password length - user's choice
     
     # Validate email format
     import re
@@ -1643,15 +1661,33 @@ async def send_prediction_email(request: EmailPredictionRequest):
         )
         
         if success:
-            return EmailResponse(
-                success=True,
-                message=f"Prediction report sent successfully to {request.email}"
-            )
+            # Check if it's demo mode (placeholder password)
+            gmail_password = os.getenv("GMAIL_APP_PASSWORD", "")
+            if gmail_password == "your-gmail-app-password-here" or "demo" in gmail_password.lower():
+                return EmailResponse(
+                    success=True,
+                    message=f"Demo: Email simulation completed for {request.email}. Check backend console for details."
+                )
+            else:
+                return EmailResponse(
+                    success=True,
+                    message=f"Prediction report sent successfully to {request.email}"
+                )
         else:
-            raise HTTPException(
-                status_code=500, 
-                detail="Failed to send email. Please check email configuration."
-            )
+            # Check if it's a configuration issue
+            gmail_email = os.getenv("GMAIL_EMAIL")
+            gmail_password = os.getenv("GMAIL_APP_PASSWORD")
+            
+            if not gmail_email or not gmail_password:
+                return EmailResponse(
+                    success=False,
+                    message="Email functionality is not configured. Gmail credentials are required to send emails."
+                )
+            else:
+                raise HTTPException(
+                    status_code=500, 
+                    detail="Failed to send email. Please check email configuration."
+                )
             
     except Exception as e:
         print(f"❌ Email sending error: {e}")
@@ -1659,6 +1695,38 @@ async def send_prediction_email(request: EmailPredictionRequest):
             status_code=500, 
             detail=f"Email sending failed: {str(e)}"
         )
+
+@app.post("/test-email")
+async def test_email_endpoint():
+    """Test email functionality"""
+    try:
+        # Test email data
+        test_prediction = {
+            "prediction": 25000.0,
+            "confidence": 0.85
+        }
+        test_patient_data = {
+            "age": 30,
+            "bmi": 25.5,
+            "gender": "Male",
+            "smoker": "No",
+            "region": "North",
+            "premium_annual_inr": 20000
+        }
+        
+        success = email_service.send_prediction_email(
+            recipient_email="gokrishna98@gmail.com",
+            prediction_data=test_prediction,
+            patient_data=test_patient_data
+        )
+        
+        if success:
+            return {"success": True, "message": "Test email sent successfully to gokrishna98@gmail.com"}
+        else:
+            return {"success": False, "message": "Failed to send test email"}
+            
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}
 
 if __name__ == "__main__":
     import uvicorn

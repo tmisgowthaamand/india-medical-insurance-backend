@@ -167,12 +167,63 @@ class EmailService:
         
         return insights
     
+    def _simulate_email_send(self, recipient_email: str, prediction_data: Dict, patient_data: Dict):
+        """Simulate email sending for demo purposes"""
+        prediction_amount = self.format_currency(prediction_data.get('prediction', 0))
+        confidence = round(prediction_data.get('confidence', 0) * 100, 1)
+        timestamp = datetime.now().strftime("%B %d, %Y at %I:%M %p IST")
+        
+        print("="*60)
+        print("📧 DEMO EMAIL SIMULATION")
+        print("="*60)
+        print(f"To: {recipient_email}")
+        print(f"From: MediCare+ Platform <{self.sender_email}>")
+        print(f"Subject: 🏥 MediCare+ Prediction Report - {prediction_amount}")
+        print(f"Generated: {timestamp}")
+        print("-"*60)
+        print("📋 PATIENT INFORMATION:")
+        print(f"   Age: {patient_data.get('age')} years")
+        print(f"   BMI: {patient_data.get('bmi')}")
+        print(f"   Gender: {patient_data.get('gender')}")
+        print(f"   Smoker: {patient_data.get('smoker')}")
+        print(f"   Region: {patient_data.get('region')}")
+        print(f"   Premium: ₹{patient_data.get('premium_annual_inr', 'Estimated')}")
+        print("-"*60)
+        print("🎯 PREDICTION RESULTS:")
+        print(f"   Predicted Claim: {prediction_amount}")
+        print(f"   Confidence: {confidence}%")
+        print("-"*60)
+        print("✅ Email simulation completed successfully!")
+        print("💡 To send real emails, configure actual Gmail credentials")
+        print("="*60)
+    
     def send_prediction_email(self, recipient_email: str, prediction_data: Dict, patient_data: Dict) -> bool:
         """Send prediction report via email"""
         try:
             if not self.sender_email or not self.sender_password:
-                print("❌ Gmail credentials not configured")
+                print("❌ Gmail credentials not configured. Email functionality disabled.")
+                print("💡 To enable email functionality:")
+                print("   1. Set GMAIL_EMAIL=your-email@gmail.com in .env")
+                print("   2. Set GMAIL_APP_PASSWORD=your-app-password in .env")
+                print("   3. Generate App Password at: https://myaccount.google.com/apppasswords")
                 return False
+            
+            # Check if app password is still placeholder
+            if self.sender_password == "your-gmail-app-password-here" or "demo" in self.sender_password.lower():
+                print(f"📧 SETUP REQUIRED: Gmail App Password not configured for {self.sender_email}")
+                print("💡 To send real emails to Gmail inbox:")
+                print("   1. Go to: https://myaccount.google.com/apppasswords")
+                print("   2. Sign in with gokrishna98@gmail.com")
+                print("   3. Generate app password for 'MediCare Platform'")
+                print("   4. Replace 'your-gmail-app-password-here' in .env file")
+                print("   5. Restart backend server")
+                print("📋 Currently simulating email send...")
+                # Simulate successful email sending for demo purposes
+                self._simulate_email_send(recipient_email, prediction_data, patient_data)
+                return True
+            
+            print(f"📧 REAL EMAIL MODE: Sending to {recipient_email} from {self.sender_email}")
+            print(f"🔑 Using app password: {self.sender_password[:4]}...{self.sender_password[-4:]}")
             
             # Prepare email data
             prediction_amount = self.format_currency(prediction_data.get('prediction', 0))
@@ -231,17 +282,57 @@ class EmailService:
             msg.attach(html_part)
             
             # Send email
+            print(f"🔗 Connecting to {self.smtp_server}:{self.smtp_port}...")
             context = ssl.create_default_context()
             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+                print("🔐 Starting TLS...")
                 server.starttls(context=context)
+                print("🔑 Logging in...")
                 server.login(self.sender_email, self.sender_password)
+                print("📧 Sending email...")
                 server.send_message(msg)
             
             print(f"✅ Email sent successfully to {recipient_email}")
+            print(f"📬 Subject: {msg['Subject']}")
+            print(f"⏰ Sent at: {timestamp}")
+            
+            # Store email report in database (async call handled in backend)
+            try:
+                import asyncio
+                from database import supabase_client
+                report_data = {
+                    "prediction": prediction_data,
+                    "patient_data": patient_data,
+                    "email_content": {
+                        "subject": msg['Subject'],
+                        "prediction_amount": prediction_amount,
+                        "confidence": confidence,
+                        "timestamp": timestamp
+                    }
+                }
+                # Run async function in event loop
+                asyncio.create_task(supabase_client.store_email_report(recipient_email, report_data, "sent"))
+            except Exception as db_error:
+                print(f"⚠️ Failed to store email report in database: {db_error}")
+            
             return True
             
+        except smtplib.SMTPAuthenticationError as e:
+            print(f"❌ SMTP Authentication failed: {e}")
+            print("💡 Check Gmail App Password configuration")
+            return False
+        except smtplib.SMTPRecipientsRefused as e:
+            print(f"❌ Recipient email refused: {e}")
+            print("💡 Check recipient email address")
+            return False
+        except smtplib.SMTPException as e:
+            print(f"❌ SMTP error: {e}")
+            return False
         except Exception as e:
             print(f"❌ Failed to send email: {e}")
+            print(f"❌ Error type: {type(e).__name__}")
+            import traceback
+            print(f"❌ Full traceback: {traceback.format_exc()}")
             return False
 
 # Global email service instance
