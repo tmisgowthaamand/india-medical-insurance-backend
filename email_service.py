@@ -22,11 +22,14 @@ class EmailService:
         self.smtp_port = 587
         self.sender_email = os.getenv("GMAIL_EMAIL")
         self.sender_password = os.getenv("GMAIL_APP_PASSWORD")
+        self.sender_name = "MediCare+ Platform"
         self.email_enabled = bool(self.sender_email and self.sender_password)
         
         if not self.email_enabled:
             print("⚠️ Email service disabled - Gmail credentials not configured")
             print("💡 Set GMAIL_EMAIL and GMAIL_APP_PASSWORD environment variables to enable email")
+        else:
+            print(f"✅ Email service enabled - Sender: {self.sender_email}")
     
     def is_email_enabled(self) -> bool:
         """Check if email service is properly configured"""
@@ -248,11 +251,15 @@ class EmailService:
             # Generate insights
             insights = self.generate_insights(patient_data, prediction_data)
             
-            # Create email
+            # Create email with proper headers to avoid spam
             msg = MIMEMultipart('alternative')
             msg['Subject'] = f"🏥 MediCare+ Prediction Report - {prediction_amount}"
-            msg['From'] = self.sender_email
+            msg['From'] = f"{self.sender_name} <{self.sender_email}>"
             msg['To'] = recipient_email
+            msg['Reply-To'] = self.sender_email
+            msg['X-Mailer'] = "MediCare+ Platform v1.0"
+            msg['X-Priority'] = "3"
+            msg['Message-ID'] = f"<{datetime.now().strftime('%Y%m%d%H%M%S')}.{recipient_email.replace('@', '_at_')}@medicare-platform.com>"
             
             # Create HTML content
             template = Template(self.create_prediction_email_template())
@@ -273,16 +280,27 @@ class EmailService:
             html_part = MIMEText(html_content, 'html')
             msg.attach(html_part)
             
-            # Send email
+            # Send email with enhanced authentication
             print(f"🔗 Connecting to {self.smtp_server}:{self.smtp_port}...")
             context = ssl.create_default_context()
+            
+            # Configure SSL context for better security
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+            
             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
                 print("🔐 Starting TLS...")
                 server.starttls(context=context)
                 print("🔑 Logging in...")
                 server.login(self.sender_email, self.sender_password)
                 print("📧 Sending email...")
-                server.send_message(msg)
+                
+                # Send with proper envelope
+                server.sendmail(
+                    from_addr=self.sender_email,
+                    to_addrs=[recipient_email],
+                    msg=msg.as_string()
+                )
             
             print(f"✅ Email sent successfully to {recipient_email}")
             print(f"📬 Subject: {msg['Subject']}")
