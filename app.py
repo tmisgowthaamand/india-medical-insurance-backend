@@ -264,7 +264,7 @@ class PredictIn(BaseModel):
     gender: str
     smoker: str
     region: str
-    premium_annual_inr: Optional[float] = None
+    premium_annual_inr: float
     email: Optional[str] = None
 
 class PredictResponse(BaseModel):
@@ -657,14 +657,26 @@ async def predict(payload: PredictIn, current_user: str = Depends(get_current_us
         'gender': payload.gender,
         'smoker': payload.smoker,
         'region': payload.region,
-        'premium_annual_inr': payload.premium_annual_inr if payload.premium_annual_inr is not None else 0.0
+        'premium_annual_inr': payload.premium_annual_inr
     }
     
-    X = pd.DataFrame([input_data])
-    
     try:
-        # Make prediction
-        prediction = model.predict(X)[0]
+        # Handle both old and new model formats
+        if isinstance(model, dict) and 'model' in model:
+            # New format with encoders
+            X_encoded = pd.DataFrame([{
+                'age': payload.age,
+                'bmi': payload.bmi,
+                'gender': model['encoders']['gender'].transform([payload.gender])[0],
+                'smoker': model['encoders']['smoker'].transform([payload.smoker])[0],
+                'region': model['encoders']['region'].transform([payload.region])[0],
+                'premium_annual_inr': payload.premium_annual_inr
+            }])
+            prediction = model['model'].predict(X_encoded)[0]
+        else:
+            # Old format - direct prediction
+            X = pd.DataFrame([input_data])
+            prediction = model.predict(X)[0]
         
         # Calculate confidence (using prediction variance across trees)
         confidence = 0.0
@@ -1819,16 +1831,21 @@ async def send_prediction_email(request: EmailPredictionRequest):
                 message=f"Invalid email format: {request.email}"
             )
         
-        # Save email to users table if it doesn't exist
+        # Save email to users table if it doesn't exist (non-blocking)
         try:
             if supabase_client.is_enabled():
                 email_result = await supabase_client.save_email_to_users(str(request.email))
                 if email_result.get("success"):
-                    print(f"✅ Email {request.email} saved to users table")
+                    if "already exists" in email_result.get("message", ""):
+                        print(f"ℹ️ Email {request.email} already exists in users table - proceeding with email")
+                    else:
+                        print(f"✅ Email {request.email} saved to users table")
                 else:
                     print(f"⚠️ Failed to save email to users table: {email_result.get('error', 'Unknown error')}")
+                    print("📧 Proceeding with email sending anyway...")
         except Exception as e:
             print(f"⚠️ Error saving email to users table: {e}")
+            print("📧 Proceeding with email sending anyway...")
         
         # Check Gmail configuration
         gmail_email = os.getenv("GMAIL_EMAIL")
@@ -2025,10 +2042,9 @@ async def test_email_endpoint():
             return {"success": True, "message": "Test email sent successfully to gokrishna98@gmail.com"}
         else:
             return {"success": False, "message": "Failed to send test email"}
-            
     except Exception as e:
-        return {"success": False, "message": f"Error: {str(e)}"}
+        return {"success": False, "message": f"Test email failed: {str(e)}"}
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)

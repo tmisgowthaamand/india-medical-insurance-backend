@@ -280,11 +280,11 @@ class EmailService:
             html_part = MIMEText(html_content, 'html')
             msg.attach(html_part)
             
-            # Send email with enhanced authentication
+            # Send email with optimized connection
             print(f"🔗 Connecting to {self.smtp_server}:{self.smtp_port}...")
             context = ssl.create_default_context()
             
-            # Configure SSL context for better security
+            # Optimize SSL context for speed
             context.check_hostname = False
             context.verify_mode = ssl.CERT_NONE
             
@@ -306,24 +306,8 @@ class EmailService:
             print(f"📬 Subject: {msg['Subject']}")
             print(f"⏰ Sent at: {timestamp}")
             
-            # Store email report in database (async call handled in backend)
-            try:
-                import asyncio
-                from database import supabase_client
-                report_data = {
-                    "prediction": prediction_data,
-                    "patient_data": patient_data,
-                    "email_content": {
-                        "subject": msg['Subject'],
-                        "prediction_amount": prediction_amount,
-                        "confidence": confidence,
-                        "timestamp": timestamp
-                    }
-                }
-                # Run async function in event loop
-                asyncio.create_task(supabase_client.store_email_report(recipient_email, report_data, "sent"))
-            except Exception as db_error:
-                print(f"⚠️ Failed to store email report in database: {db_error}")
+            # Skip database storage for faster email sending
+            print(f"📧 Email sent successfully - skipping database storage for speed")
             
             return True
             

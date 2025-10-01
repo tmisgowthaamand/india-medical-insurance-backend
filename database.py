@@ -103,7 +103,7 @@ class SupabaseClient:
             existing_user = await self.get_user(email)
             if existing_user:
                 logger.info(f"Email {email} already exists in users table")
-                return {"success": True, "message": "Email already exists"}
+                return {"success": True, "message": "Email already exists", "existing": True}
             
             # Create new user entry with email only (no password for email-only users)
             user_data = {
