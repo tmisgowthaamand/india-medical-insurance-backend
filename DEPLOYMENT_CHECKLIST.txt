@@ -1,0 +1,30 @@
+# Render Deployment Checklist
+
+## Before Deployment:
+1. [x] Added jinja2==3.1.2 to requirements
+2. [x] Added email-validator==2.1.0 for email validation
+3. [x] Added aiofiles==23.2.1 for file operations
+4. [x] Updated both requirements.txt and requirements-render.txt
+
+## Render Dashboard Settings:
+- Build Command: pip install -r requirements-render.txt
+- Start Command: uvicorn app:app --host 0.0.0.0 --port $PORT --workers 1
+
+## Environment Variables (copy to Render):
+SUPABASE_URL=https://gucyzhjyciqnvxedmoxo.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1Y3l6aGp5Y2lxbnZ4ZWRtb3hvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1ODg4MDQxOSwiZXhwIjoyMDc0NDU2NDE5fQ.yBrXifdpZ9vrymLQ1EiZnspxHfF0x73wAP0Mfl96kk4
+JWT_SECRET_KEY=medical_insurance_dashboard_jwt_secret_key_2024_change_in_production
+JWT_ALGORITHM=HS256
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
+ENVIRONMENT=production
+ALLOWED_ORIGINS=https://india-medical-insurance-frontend.vercel.app,*
+
+## After Deployment:
+- Test health endpoint: https://your-app.onrender.com/health
+- Test API docs: https://your-app.onrender.com/docs
+- Test prediction endpoint: https://your-app.onrender.com/predict
+
+## Common Issues Fixed:
+- ModuleNotFoundError: No module named 'jinja2' - FIXED
+- Missing email validation dependencies - FIXED
+- File operation dependencies - FIXED

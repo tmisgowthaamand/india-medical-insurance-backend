@@ -1,4 +1,4 @@
-# Production requirements for Render deployment - Compatible versions
+# Complete requirements for Render deployment
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 gunicorn==21.2.0
@@ -18,3 +18,6 @@ pytz>=2020.1
 tzdata>=2022.1
 supabase==2.0.2
 python-dotenv==1.0.0
+jinja2==3.1.2
+email-validator==2.1.0
+aiofiles==23.2.1
