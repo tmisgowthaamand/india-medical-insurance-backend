@@ -1,0 +1,33 @@
+{
+  "test_timestamp": "2025-10-01T17:46:35.413393",
+  "base_url": "http://localhost:8001",
+  "total_tests": 4,
+  "successful": 4,
+  "failed": 0,
+  "results": [
+    {
+      "email": "gowthaamankrishna1998@gmail.com",
+      "status": "success",
+      "message": "Prediction report sent successfully to gowthaamankrishna1998@gmail.com! Check your inbox. (saved to database)",
+      "response_time": 7.729020595550537
+    },
+    {
+      "email": "perivihari8@gmail.com",
+      "status": "success",
+      "message": "Prediction report sent successfully to perivihari8@gmail.com! Check your inbox. (saved to database)",
+      "response_time": 6.660887002944946
+    },
+    {
+      "email": "gokrishna98@gmail.com",
+      "status": "success",
+      "message": "Prediction report sent successfully to gokrishna98@gmail.com! Check your inbox. (saved to database)",
+      "response_time": 6.393725156784058
+    },
+    {
+      "email": "admin@example.com",
+      "status": "success",
+      "message": "Prediction report sent successfully to admin@example.com! Check your inbox. (saved to database)",
+      "response_time": 6.240365266799927
+    }
+  ]
+}

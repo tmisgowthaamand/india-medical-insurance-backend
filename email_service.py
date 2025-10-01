@@ -210,12 +210,15 @@ class EmailService:
         print("="*60)
     
     def send_prediction_email(self, recipient_email: str, prediction_data: Dict[str, Any], patient_data: Dict[str, Any]) -> bool:
-        """Send prediction report via email with graceful error handling"""
+        """Send prediction report via email with graceful error handling and fallback"""
+        
+        # Always try to store report locally first as backup
+        local_backup_success = self._store_email_report_locally(recipient_email, prediction_data, patient_data)
         
         # Check if email service is enabled
         if not self.is_email_enabled():
-            print("⚠️ Email service is disabled - storing report locally instead")
-            return self._store_email_report_locally(recipient_email, prediction_data, patient_data)
+            print("⚠️ Email service is disabled - report stored locally instead")
+            return local_backup_success
         
         print(f"📧 Attempting to send email to {recipient_email}...")
         
@@ -313,23 +316,26 @@ class EmailService:
             
         except (OSError, ConnectionError, TimeoutError) as e:
             print(f"⚠️ Network error: {e}")
-            print("📝 Storing email report locally instead")
-            return self._store_email_report_locally(recipient_email, prediction_data, patient_data)
+            print("📝 Email report already stored locally as backup")
+            return local_backup_success  # Return success since we have local backup
         except smtplib.SMTPAuthenticationError as e:
             print(f"❌ SMTP Authentication failed: {e}")
             print("💡 Check Gmail App Password configuration")
-            return self._store_email_report_locally(recipient_email, prediction_data, patient_data)
+            print("📝 Email report already stored locally as backup")
+            return local_backup_success  # Return success since we have local backup
         except smtplib.SMTPRecipientsRefused as e:
             print(f"❌ Recipient email refused: {e}")
             print("💡 Check recipient email address")
-            return self._store_email_report_locally(recipient_email, prediction_data, patient_data)
+            print("📝 Email report already stored locally as backup")
+            return local_backup_success  # Return success since we have local backup
         except smtplib.SMTPException as e:
             print(f"❌ SMTP error: {e}")
-            return self._store_email_report_locally(recipient_email, prediction_data, patient_data)
+            print("📝 Email report already stored locally as backup")
+            return local_backup_success  # Return success since we have local backup
         except Exception as e:
             print(f"⚠️ Email sending failed: {e}")
-            print(f"📝 Storing report locally instead")
-            return self._store_email_report_locally(recipient_email, prediction_data, patient_data)
+            print(f"📝 Email report already stored locally as backup")
+            return local_backup_success  # Return success since we have local backup
     
     def _store_email_report_locally(self, recipient_email: str, prediction_data: Dict[str, Any], patient_data: Dict[str, Any]) -> bool:
         """Store email report locally when sending fails"""

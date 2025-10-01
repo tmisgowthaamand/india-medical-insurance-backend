@@ -1,0 +1,70 @@
+[
+  {
+    "recipient": "gowthaamankrishna1998@gmail.com",
+    "prediction": {
+      "prediction": 28500.75,
+      "confidence": 0.87
+    },
+    "patient_data": {
+      "age": 32,
+      "bmi": 24.8,
+      "gender": "Male",
+      "smoker": "No",
+      "region": "North",
+      "premium_annual_inr": 22000
+    },
+    "timestamp": "2025-10-01T17:46:11.612055",
+    "status": "stored_locally"
+  },
+  {
+    "recipient": "perivihari8@gmail.com",
+    "prediction": {
+      "prediction": 28500.75,
+      "confidence": 0.87
+    },
+    "patient_data": {
+      "age": 32,
+      "bmi": 24.8,
+      "gender": "Male",
+      "smoker": "No",
+      "region": "North",
+      "premium_annual_inr": 22000
+    },
+    "timestamp": "2025-10-01T17:46:18.324796",
+    "status": "stored_locally"
+  },
+  {
+    "recipient": "gokrishna98@gmail.com",
+    "prediction": {
+      "prediction": 28500.75,
+      "confidence": 0.87
+    },
+    "patient_data": {
+      "age": 32,
+      "bmi": 24.8,
+      "gender": "Male",
+      "smoker": "No",
+      "region": "North",
+      "premium_annual_inr": 22000
+    },
+    "timestamp": "2025-10-01T17:46:24.963342",
+    "status": "stored_locally"
+  },
+  {
+    "recipient": "admin@example.com",
+    "prediction": {
+      "prediction": 28500.75,
+      "confidence": 0.87
+    },
+    "patient_data": {
+      "age": 32,
+      "bmi": 24.8,
+      "gender": "Male",
+      "smoker": "No",
+      "region": "North",
+      "premium_annual_inr": 22000
+    },
+    "timestamp": "2025-10-01T17:46:31.409410",
+    "status": "stored_locally"
+  }
+]
