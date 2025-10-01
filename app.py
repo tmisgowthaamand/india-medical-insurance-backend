@@ -1330,30 +1330,50 @@ async def get_user_claims_analysis(current_user: str = Depends(get_current_user_
         )
 
 @app.get('/model-info')
-def get_model_info(current_user: str = Depends(get_current_user_from_token)):
+async def get_model_info(current_user: str = Depends(get_current_user_from_token)):
     """Get model information and feature importance (requires authentication)"""
-    """Get model information and feature importance"""
     if model is None:
         return {"status": "No model loaded"}
     
     info = {"status": "Model loaded"}
     
-    # Load training metadata if available
-    metadata_path = "models/training_metadata.json"
-    if os.path.exists(metadata_path):
-        with open(metadata_path, 'r') as f:
-            metadata = json.load(f)
-            # Clean metadata to handle NaN/inf values
-            cleaned_metadata = {}
-            for key, value in metadata.items():
-                if isinstance(value, float):
-                    if pd.isna(value) or not np.isfinite(value):
-                        cleaned_metadata[key] = 0.0
+    # Try to get model metadata from Supabase first
+    if supabase_client.is_enabled():
+        try:
+            supabase_metadata = await supabase_client.get_latest_model_metadata()
+            if supabase_metadata:
+                print("Using model metadata from Supabase")
+                # Convert Supabase metadata to expected format
+                info.update({
+                    "test_r2": supabase_metadata.get("test_r2", 0.0),
+                    "test_rmse": supabase_metadata.get("test_rmse", 0.0),
+                    "training_date": supabase_metadata.get("training_date", ""),
+                    "training_samples": supabase_metadata.get("training_samples", 0),
+                    "model_type": supabase_metadata.get("model_type", "Unknown"),
+                    "trained_by": supabase_metadata.get("trained_by", "Unknown"),
+                    "training_dataset": supabase_metadata.get("training_dataset", "Unknown")
+                })
+        except Exception as e:
+            print(f"Error getting model metadata from Supabase: {e}")
+    
+    # Fallback to local metadata file if Supabase data not available
+    if "test_r2" not in info:
+        metadata_path = "models/training_metadata.json"
+        if os.path.exists(metadata_path):
+            with open(metadata_path, 'r') as f:
+                metadata = json.load(f)
+                # Clean metadata to handle NaN/inf values
+                cleaned_metadata = {}
+                for key, value in metadata.items():
+                    if isinstance(value, float):
+                        if pd.isna(value) or not np.isfinite(value):
+                            cleaned_metadata[key] = 0.0
+                        else:
+                            cleaned_metadata[key] = value
                     else:
                         cleaned_metadata[key] = value
-                else:
-                    cleaned_metadata[key] = value
-            info.update(cleaned_metadata)
+                info.update(cleaned_metadata)
+            print("Using local model metadata")
     
     # Get feature importance (try fast method first, then fallback)
     try:
@@ -1546,12 +1566,51 @@ async def admin_upload(file: UploadFile = File(...), current_user: str = Depends
                 CSV_PATH = file_path  # Update to use the new dataset
                 print(f"Model training successful. New CSV_PATH: {CSV_PATH}")
                 
+                # Store model metadata in Supabase after successful training
+                if supabase_client.is_enabled():
+                    try:
+                        # Calculate model performance metrics
+                        from sklearn.model_selection import train_test_split
+                        from sklearn.metrics import mean_squared_error, r2_score
+                        
+                        # Prepare data for evaluation
+                        X = df.drop('claim_amount_inr', axis=1)
+                        y = df['claim_amount_inr']
+                        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+                        
+                        # Get predictions for evaluation
+                        y_pred = model.predict(X_test)
+                        r2 = r2_score(y_test, y_pred)
+                        rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+                        
+                        model_metadata = {
+                            "training_samples": len(df),
+                            "test_samples": len(X_test),
+                            "train_r2": float(r2_score(y_train, model.predict(X_train))),
+                            "test_r2": float(r2),
+                            "train_rmse": float(np.sqrt(mean_squared_error(y_train, model.predict(X_train)))),
+                            "test_rmse": float(rmse),
+                            "features": list(X.columns),
+                            "model_version": "1.0",
+                            "training_date": datetime.now().isoformat()
+                        }
+                        
+                        model_result = await supabase_client.store_model_metadata(model_metadata)
+                        if "error" in model_result:
+                            print(f"Warning: Could not store model metadata: {model_result['error']}")
+                        else:
+                            print(f"Model metadata stored successfully")
+                            
+                    except Exception as e:
+                        print(f"Warning: Could not store model metadata: {e}")
+                
                 return {
                     "message": f"File uploaded successfully and model retrained. Dataset has {len(df)} rows.",
                     "dataset_rows": len(df),
                     "filename": file.filename,
                     "training_completed": True,
-                    "file_path": file_path
+                    "file_path": file_path,
+                    "supabase_stored": supabase_client.is_enabled()
                 }
             else:
                 print("Model training returned None")
@@ -1632,7 +1691,52 @@ async def admin_retrain(current_user: str = Depends(get_current_user_from_token)
             model = new_model
             # Update CSV_PATH to the file we actually used
             CSV_PATH = dataset_to_use
-            return {"message": f"Model retrained successfully using {os.path.basename(dataset_to_use)} (Fast training completed in <30 seconds)"}
+            
+            # Store model metadata in Supabase after successful retraining
+            if supabase_client.is_enabled():
+                try:
+                    # Load dataset for evaluation
+                    df = pd.read_csv(dataset_to_use)
+                    
+                    # Calculate model performance metrics
+                    from sklearn.model_selection import train_test_split
+                    from sklearn.metrics import mean_squared_error, r2_score
+                    
+                    # Prepare data for evaluation
+                    X = df.drop('claim_amount_inr', axis=1)
+                    y = df['claim_amount_inr']
+                    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+                    
+                    # Get predictions for evaluation
+                    y_pred = model.predict(X_test)
+                    r2 = r2_score(y_test, y_pred)
+                    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+                    
+                    model_metadata = {
+                        "training_samples": len(df),
+                        "test_samples": len(X_test),
+                        "train_r2": float(r2_score(y_train, model.predict(X_train))),
+                        "test_r2": float(r2),
+                        "train_rmse": float(np.sqrt(mean_squared_error(y_train, model.predict(X_train)))),
+                        "test_rmse": float(rmse),
+                        "features": list(X.columns),
+                        "model_version": "1.1",
+                        "training_date": datetime.now().isoformat()
+                    }
+                    
+                    model_result = await supabase_client.store_model_metadata(model_metadata)
+                    if "error" in model_result:
+                        print(f"Warning: Could not store model metadata: {model_result['error']}")
+                    else:
+                        print(f"Model metadata stored successfully after retraining")
+                        
+                except Exception as e:
+                    print(f"Warning: Could not store model metadata: {e}")
+            
+            return {
+                "message": f"Model retrained successfully using {os.path.basename(dataset_to_use)} (Fast training completed in <30 seconds)",
+                "supabase_stored": supabase_client.is_enabled()
+            }
         else:
             raise HTTPException(status_code=500, detail="Model training failed")
     except Exception as e:
@@ -1764,6 +1868,134 @@ async def send_prediction_email(request: EmailPredictionRequest):
             success=False,
             message=f"Email processing failed: {str(e)}"
         )
+
+@app.get('/admin/datasets')
+async def get_datasets(current_user: str = Depends(get_current_user_from_token)):
+    """Get list of uploaded datasets (Admin only)"""
+    # Check if user is admin
+    if supabase_client.is_enabled():
+        try:
+            user = await supabase_client.get_user(current_user)
+            if not user or not user.get("is_admin", False):
+                raise HTTPException(status_code=403, detail="Admin access required")
+        except Exception as e:
+            print(f"Error checking admin status: {e}")
+            users = await load_users()
+            user = users.get(current_user, {})
+            if not user.get("is_admin", False):
+                raise HTTPException(status_code=403, detail="Admin access required")
+    else:
+        users = await load_users()
+        user = users.get(current_user, {})
+        if not user.get("is_admin", False):
+            raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        datasets = []
+        
+        # Get datasets from Supabase if available
+        if supabase_client.is_enabled():
+            supabase_datasets = await supabase_client.list_datasets()
+            for dataset in supabase_datasets:
+                datasets.append({
+                    "id": dataset["id"],
+                    "filename": dataset["filename"],
+                    "rows": dataset["rows"],
+                    "upload_date": dataset["upload_date"],
+                    "source": "supabase"
+                })
+        
+        # Also check local files
+        data_dir = "data"
+        if os.path.exists(data_dir):
+            for file in os.listdir(data_dir):
+                if file.endswith('.csv'):
+                    file_path = os.path.join(data_dir, file)
+                    file_stat = os.stat(file_path)
+                    
+                    # Try to get row count
+                    try:
+                        df = pd.read_csv(file_path)
+                        row_count = len(df)
+                    except:
+                        row_count = 0
+                    
+                    datasets.append({
+                        "filename": file,
+                        "rows": row_count,
+                        "upload_date": datetime.fromtimestamp(file_stat.st_mtime).isoformat(),
+                        "source": "local",
+                        "file_size": file_stat.st_size
+                    })
+        
+        return {"datasets": datasets}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving datasets: {str(e)}")
+
+@app.get('/admin/models')
+async def get_models(current_user: str = Depends(get_current_user_from_token)):
+    """Get list of trained models (Admin only)"""
+    # Check if user is admin
+    if supabase_client.is_enabled():
+        try:
+            user = await supabase_client.get_user(current_user)
+            if not user or not user.get("is_admin", False):
+                raise HTTPException(status_code=403, detail="Admin access required")
+        except Exception as e:
+            print(f"Error checking admin status: {e}")
+            users = await load_users()
+            user = users.get(current_user, {})
+            if not user.get("is_admin", False):
+                raise HTTPException(status_code=403, detail="Admin access required")
+    else:
+        users = await load_users()
+        user = users.get(current_user, {})
+        if not user.get("is_admin", False):
+            raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        models = []
+        
+        # Get model metadata from Supabase if available
+        if supabase_client.is_enabled():
+            try:
+                result = supabase_client.client.table("model_metadata").select("*").order("created_at", desc=True).execute()
+                for model_data in result.data:
+                    models.append({
+                        "id": model_data["id"],
+                        "model_type": model_data.get("model_type", "Unknown"),
+                        "training_dataset": model_data.get("training_dataset", "Unknown"),
+                        "training_samples": model_data.get("training_samples", 0),
+                        "test_r2_score": model_data.get("test_r2_score", 0.0),
+                        "test_rmse": model_data.get("test_rmse", 0.0),
+                        "trained_by": model_data.get("trained_by", "Unknown"),
+                        "training_date": model_data.get("training_date", ""),
+                        "status": model_data.get("status", "unknown"),
+                        "source": "supabase"
+                    })
+            except Exception as e:
+                print(f"Error getting models from Supabase: {e}")
+        
+        # Also check local model metadata
+        metadata_path = "models/training_metadata.json"
+        if os.path.exists(metadata_path):
+            try:
+                with open(metadata_path, 'r') as f:
+                    local_metadata = json.load(f)
+                    models.append({
+                        "model_type": "Local Model",
+                        "training_samples": local_metadata.get("training_samples", 0),
+                        "test_r2_score": local_metadata.get("test_r2", 0.0),
+                        "test_rmse": local_metadata.get("test_rmse", 0.0),
+                        "training_date": local_metadata.get("training_date", ""),
+                        "source": "local"
+                    })
+            except Exception as e:
+                print(f"Error reading local model metadata: {e}")
+        
+        return {"models": models}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving models: {str(e)}")
 
 @app.post("/test-email")
 async def test_email_endpoint():

@@ -1,0 +1,11 @@
+age,bmi,gender,smoker,region,premium_annual_inr,claim_amount_inr
+25,22.5,Male,No,North,15000,8000
+30,25.0,Female,No,South,18000,12000
+35,27.5,Male,Yes,East,25000,18000
+40,30.0,Female,No,West,22000,15000
+45,32.5,Male,Yes,North,30000,22000
+50,28.0,Female,No,South,20000,13000
+55,26.5,Male,Yes,East,28000,20000
+60,24.0,Female,No,West,16000,9000
+28,23.5,Male,No,North,17000,10000
+33,26.0,Female,Yes,South,24000,16000
