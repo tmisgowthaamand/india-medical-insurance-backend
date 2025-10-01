@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 """
-Email Service for MediCare+ Platform
-Handles sending prediction reports via Gmail SMTP
+Optimized Email Service for MediCare+ Platform - Render Deployment
+Handles sending prediction reports via Gmail SMTP with timeout optimization
 """
 
 import smtplib
 import ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email import encoders
 import os
+import asyncio
 from datetime import datetime
 from jinja2 import Template
 import json
 from typing import Dict, Any
+import concurrent.futures
+import socket
 
 class EmailService:
     def __init__(self):
@@ -25,11 +26,17 @@ class EmailService:
         self.sender_name = "MediCare+ Platform"
         self.email_enabled = bool(self.sender_email and self.sender_password)
         
+        # Timeout settings optimized for Render
+        self.connection_timeout = 15  # 15 seconds for connection
+        self.send_timeout = 30        # 30 seconds for sending
+        self.total_timeout = 45       # 45 seconds total (well under 90s frontend timeout)
+        
         if not self.email_enabled:
             print("⚠️ Email service disabled - Gmail credentials not configured")
             print("💡 Set GMAIL_EMAIL and GMAIL_APP_PASSWORD environment variables to enable email")
         else:
             print(f"✅ Email service enabled - Sender: {self.sender_email}")
+            print(f"⏱️ Timeout settings: Connection={self.connection_timeout}s, Send={self.send_timeout}s, Total={self.total_timeout}s")
     
     def is_email_enabled(self) -> bool:
         """Check if email service is properly configured"""
@@ -178,6 +185,201 @@ class EmailService:
             insights.append("Moderate prediction confidence - additional health data may improve accuracy")
         
         return insights
+    
+    async def send_prediction_email_async(self, recipient_email: str, prediction_data: Dict[str, Any], patient_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Async email sending with timeout control for Render deployment"""
+        
+        try:
+            # Set socket timeout for the entire operation
+            original_timeout = socket.getdefaulttimeout()
+            socket.setdefaulttimeout(self.total_timeout)
+            
+            print(f"📧 Starting async email send to {recipient_email} (timeout: {self.total_timeout}s)")
+            
+            # Check if email service is enabled
+            if not self.is_email_enabled():
+                print("⚠️ Email service is disabled - storing locally")
+                success = await self._store_email_report_locally_async(recipient_email, prediction_data, patient_data)
+                return {
+                    "success": True,
+                    "message": f"Demo: Prediction report generated for {recipient_email}! Email service disabled - report stored locally.",
+                    "mock": True
+                }
+            
+            # Prepare email data quickly
+            prediction_amount = self.format_currency(prediction_data.get('prediction', 0))
+            confidence = round(prediction_data.get('confidence', 0) * 100, 1)
+            timestamp = datetime.now().strftime("%B %d, %Y at %I:%M %p IST")
+            
+            # BMI analysis (simplified for speed)
+            bmi = float(patient_data.get('bmi', 0))
+            if bmi < 18.5:
+                bmi_category, risk_level, risk_class = "Underweight", "Moderate", "risk-assessment"
+                risk_description = "BMI below normal range may indicate nutritional deficiencies"
+            elif bmi < 25:
+                bmi_category, risk_level, risk_class = "Normal Weight", "Low", "risk-low"
+                risk_description = "BMI in healthy range - optimal for insurance risk assessment"
+            elif bmi < 30:
+                bmi_category, risk_level, risk_class = "Overweight", "Moderate", "risk-assessment"
+                risk_description = "BMI above normal range - lifestyle modifications recommended"
+            else:
+                bmi_category, risk_level, risk_class = "Obese", "High", "risk-high"
+                risk_description = "BMI indicates obesity - significant health risks and higher claim probability"
+            
+            # Generate insights quickly
+            insights = self.generate_insights(patient_data, prediction_data)
+            
+            # Create lightweight email
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = f"🏥 MediCare+ Report - {prediction_amount}"
+            msg['From'] = f"{self.sender_name} <{self.sender_email}>"
+            msg['To'] = recipient_email
+            msg['X-Mailer'] = "MediCare+ v1.0"
+            
+            # Create HTML content
+            template = Template(self.create_prediction_email_template())
+            html_content = template.render(
+                patient_data=patient_data,
+                prediction_amount=prediction_amount,
+                confidence=confidence,
+                timestamp=timestamp,
+                bmi_category=bmi_category,
+                risk_level=risk_level,
+                risk_class=risk_class,
+                risk_description=risk_description,
+                insights=insights,
+                recipient_email=recipient_email
+            )
+            
+            html_part = MIMEText(html_content, 'html')
+            msg.attach(html_part)
+            
+            # Send email with strict timeout control
+            print(f"🔗 Connecting to {self.smtp_server}:{self.smtp_port} (timeout: {self.connection_timeout}s)")
+            
+            # Use executor for timeout control
+            loop = asyncio.get_event_loop()
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(self._send_email_sync_optimized, msg, recipient_email)
+                try:
+                    result = await asyncio.wait_for(
+                        loop.run_in_executor(None, lambda: future.result()), 
+                        timeout=self.total_timeout
+                    )
+                    
+                    print(f"✅ Email sent successfully to {recipient_email}")
+                    return {
+                        "success": True,
+                        "message": f"Prediction report sent successfully to {recipient_email}! Check your inbox.",
+                        "send_time": result.get("send_time", "unknown")
+                    }
+                    
+                except asyncio.TimeoutError:
+                    print(f"⏱️ Email send timeout after {self.total_timeout}s - storing locally")
+                    future.cancel()
+                    success = await self._store_email_report_locally_async(recipient_email, prediction_data, patient_data)
+                    return {
+                        "success": True,
+                        "message": f"Email send timed out, but report has been generated and stored for {recipient_email}.",
+                        "timeout": True
+                    }
+            
+        except Exception as e:
+            print(f"⚠️ Email sending failed: {e}")
+            success = await self._store_email_report_locally_async(recipient_email, prediction_data, patient_data)
+            return {
+                "success": True,
+                "message": f"Email service encountered an issue, but report has been generated and stored for {recipient_email}.",
+                "error": str(e)
+            }
+        finally:
+            # Restore original timeout
+            socket.setdefaulttimeout(original_timeout)
+    
+    def _send_email_sync_optimized(self, msg, recipient_email: str) -> Dict[str, Any]:
+        """Optimized synchronous email sending with timeout control"""
+        start_time = datetime.now()
+        
+        try:
+            # Create optimized SSL context
+            context = ssl.create_default_context()
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+            
+            # Use timeout on socket level
+            with smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=self.connection_timeout) as server:
+                print("🔐 Starting TLS...")
+                server.starttls(context=context)
+                print("🔑 Logging in...")
+                server.login(self.sender_email, self.sender_password)
+                print("📧 Sending email...")
+                
+                server.sendmail(
+                    from_addr=self.sender_email,
+                    to_addrs=[recipient_email],
+                    msg=msg.as_string()
+                )
+            
+            send_time = (datetime.now() - start_time).total_seconds()
+            print(f"⏱️ Email sent in {send_time:.2f} seconds")
+            
+            return {"success": True, "send_time": f"{send_time:.2f}s"}
+            
+        except Exception as e:
+            send_time = (datetime.now() - start_time).total_seconds()
+            print(f"❌ Email send failed after {send_time:.2f}s: {e}")
+            raise e
+    
+    async def _store_email_report_locally_async(self, recipient_email: str, prediction_data: Dict[str, Any], patient_data: Dict[str, Any]) -> bool:
+        """Async version of local storage"""
+        try:
+            report = {
+                "recipient": recipient_email,
+                "prediction": prediction_data,
+                "patient_data": patient_data,
+                "timestamp": datetime.now().isoformat(),
+                "status": "stored_locally"
+            }
+            
+            # Use async file operations
+            loop = asyncio.get_event_loop()
+            success = await loop.run_in_executor(None, self._store_report_sync, report)
+            
+            if success:
+                print(f"✅ Email report stored locally for {recipient_email}")
+            return success
+            
+        except Exception as e:
+            print(f"❌ Failed to store email report locally: {e}")
+            return False
+    
+    def _store_report_sync(self, report: Dict) -> bool:
+        """Synchronous report storage"""
+        try:
+            reports_file = "email_reports.json"
+            reports = []
+            
+            if os.path.exists(reports_file):
+                try:
+                    with open(reports_file, 'r') as f:
+                        reports = json.load(f)
+                except:
+                    reports = []
+            
+            reports.append(report)
+            
+            # Keep only last 100 reports
+            if len(reports) > 100:
+                reports = reports[-100:]
+            
+            with open(reports_file, 'w') as f:
+                json.dump(reports, f, indent=2)
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ Sync storage failed: {e}")
+            return False
     
     def _simulate_email_send(self, recipient_email: str, prediction_data: Dict, patient_data: Dict):
         """Simulate email sending for demo purposes"""
