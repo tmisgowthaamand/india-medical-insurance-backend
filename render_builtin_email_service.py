@@ -20,8 +20,8 @@ import re
 class RenderBuiltinEmailService:
     def __init__(self):
         # Email service configuration
-        self.sender_email = "gokrishna98@gmail.com"
-        self.sender_name = "MediCare+ Platform"
+        self.sender_email = os.getenv("SENDER_EMAIL", "gokrishna98@gmail.com")
+        self.sender_name = "MediCare+ Insurance Platform"
         
         # Try to setup email providers with built-in libraries
         self.email_providers = self._setup_email_providers()
@@ -270,9 +270,9 @@ class RenderBuiltinEmailService:
             
             # Mailgun email payload
             data = {
-                "from": f"{self.sender_name} <mailgun@{provider['domain']}>",
+                "from": f"{self.sender_name} <noreply@{provider['domain']}>",
                 "to": recipient_email,
-                "subject": f"🏥 MediCare+ Insurance Report - {prediction_amount}",
+                "subject": f"🏥 MediCare+ Insurance Report - {prediction_amount} - URGENT",
                 "html": self._generate_html_content(prediction_data, patient_data, recipient_email)
             }
             
