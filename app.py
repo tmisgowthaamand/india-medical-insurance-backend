@@ -1817,18 +1817,21 @@ async def admin_retrain_fast(current_user: str = Depends(get_current_user_from_t
 @app.post("/send-prediction-email", response_model=EmailResponse)
 async def send_prediction_email(request: EmailPredictionRequest):
     """
-    Enhanced email endpoint with immediate feedback and graceful error handling
+    Fixed email endpoint with honest feedback - only returns success when email actually reaches Gmail
     """
     start_time = datetime.now()
     
     try:
-        print(f"📧 Processing email request for: {request.email} (Enhanced with immediate feedback)")
+        print(f"📧 Processing email request for: {request.email} (FIXED - Honest feedback)")
         
-        # Import enhanced email service
-        from enhanced_email_service import enhanced_email_service
+        # Import fixed email service
+        from fix_email_delivery_issue import FixedEmailService
         
-        # Use enhanced email service with immediate feedback
-        result = await enhanced_email_service.send_prediction_email_with_immediate_feedback(
+        # Create fixed email service instance
+        fixed_email_service = FixedEmailService()
+        
+        # Use fixed email service with honest feedback
+        result = await fixed_email_service.send_prediction_email_with_honest_feedback(
             recipient_email=str(request.email),
             prediction_data=request.prediction,
             patient_data=request.patient_data
@@ -1837,9 +1840,10 @@ async def send_prediction_email(request: EmailPredictionRequest):
         processing_time = (datetime.now() - start_time).total_seconds()
         print(f"⏱️ Email processing completed in {processing_time:.2f} seconds")
         
+        # Return HONEST feedback - success only if email actually sent
         return EmailResponse(
-            success=result.get("success", True),
-            message=result.get("message", f"Email processed for {request.email}")
+            success=result.get("success", False),  # Default to False for safety
+            message=result.get("message", f"Email processing failed for {request.email}")
         )
             
     except Exception as e:
@@ -1848,10 +1852,10 @@ async def send_prediction_email(request: EmailPredictionRequest):
         import traceback
         print(f"Full traceback: {traceback.format_exc()}")
         
-        # Even if there's an error, provide positive feedback to user
+        # Return honest error message
         return EmailResponse(
-            success=True,
-            message=f"✅ Report generated successfully! Email delivery is being processed in the background. If you don't receive it within 5 minutes, please use the Download option."
+            success=False,
+            message=f"❌ Email sending failed: {str(e)}. Please check your email address and try again."
         )
 
 @app.get('/admin/datasets')

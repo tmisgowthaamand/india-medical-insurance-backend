@@ -1,0 +1,9 @@
+[
+  {
+    "recipient": "perivihari8@gmail.com",
+    "status": "delivered",
+    "processing_time": 7.69,
+    "timestamp": "2025-10-03T12:13:22.211861",
+    "service": "fixed_email_service"
+  }
+]
