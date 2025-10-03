@@ -66,5 +66,23 @@
     },
     "timestamp": "2025-10-01T17:46:31.409410",
     "status": "stored_locally"
+  },
+  {
+    "recipient": "test@example.com",
+    "prediction": {
+      "prediction": 25000,
+      "confidence": 0.85
+    },
+    "patient_data": {
+      "age": 30,
+      "bmi": 22.5,
+      "gender": "Male",
+      "smoker": "No",
+      "region": "Southeast",
+      "premium_annual_inr": 15000
+    },
+    "timestamp": "2025-10-03T11:54:27.749104",
+    "status": "queued",
+    "processing_time": 0
   }
 ]
