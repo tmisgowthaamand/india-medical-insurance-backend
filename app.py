@@ -1827,11 +1827,11 @@ async def send_prediction_email(request: EmailPredictionRequest):
     try:
         print(f"📧 Processing email request for: {request.email} (RENDER OPTIMIZED)")
         
-        # Import the render-optimized email service
-        from render_email_service import render_email_service
+        # Import the bulletproof email service
+        from bulletproof_email_service import bulletproof_email_service
         
-        # Use the render-optimized email service
-        result = await render_email_service.send_prediction_email(
+        # Use the bulletproof email service
+        result = await bulletproof_email_service.send_prediction_email(
             recipient_email=str(request.email),
             prediction_data=request.prediction,
             patient_data=request.patient_data
@@ -1990,14 +1990,14 @@ async def get_models(current_user: str = Depends(get_current_user_from_token)):
 async def test_email_endpoint():
     """Test email functionality with render-optimized service"""
     try:
-        # Import render-optimized email service
-        from render_email_service import render_email_service
+        # Import bulletproof email service
+        from bulletproof_email_service import bulletproof_email_service
         
-        # Test email to perivihari8@gmail.com (the user's email)
-        test_email = "perivihari8@gmail.com"
+        # Test email to gowthaamankrishna1998@gmail.com (the user's email)
+        test_email = "gowthaamankrishna1998@gmail.com"
         
         # Test Gmail connection first
-        connection_result = render_email_service.test_gmail_connection()
+        connection_result = bulletproof_email_service.test_gmail_connection()
         
         if not connection_result["success"]:
             return {
@@ -2010,19 +2010,19 @@ async def test_email_endpoint():
         
         # Send test prediction email
         test_prediction = {
-            "prediction": 19777.48,
-            "confidence": 0.85
+            "prediction": 25000,
+            "confidence": 0.88
         }
         test_patient_data = {
-            "age": 30,
-            "bmi": 25.5,
+            "age": 28,
+            "bmi": 24.5,
             "gender": "Male",
             "smoker": "No",
-            "region": "North",
-            "premium_annual_inr": 20000
+            "region": "South",
+            "premium_annual_inr": 22000
         }
         
-        result = await render_email_service.send_prediction_email(
+        result = await bulletproof_email_service.send_prediction_email(
             recipient_email=test_email,
             prediction_data=test_prediction,
             patient_data=test_patient_data
