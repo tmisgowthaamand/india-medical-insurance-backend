@@ -207,9 +207,10 @@ class EmailService:
                 print("⚠️ Email service is disabled - storing locally")
                 success = await self._store_email_report_locally_async(recipient_email, prediction_data, patient_data)
                 return {
-                    "success": True,
-                    "message": f"Demo: Prediction report generated for {recipient_email}! Email service disabled - report stored locally.",
-                    "mock": True
+                    "success": False,
+                    "message": f"Email service is not configured. Gmail credentials (GMAIL_EMAIL and GMAIL_APP_PASSWORD) are required to send emails.",
+                    "mock": True,
+                    "demo_mode": True
                 }
             
             # Prepare email data quickly
@@ -286,8 +287,8 @@ class EmailService:
                     future.cancel()
                     success = await self._store_email_report_locally_async(recipient_email, prediction_data, patient_data)
                     return {
-                        "success": True,
-                        "message": f"Email send timed out, but report has been generated and stored for {recipient_email}.",
+                        "success": False,
+                        "message": f"Email sending timed out after {self.total_timeout} seconds. Please try again or check your internet connection.",
                         "timeout": True
                     }
             
@@ -295,8 +296,8 @@ class EmailService:
             print(f"⚠️ Email sending failed: {e}")
             success = await self._store_email_report_locally_async(recipient_email, prediction_data, patient_data)
             return {
-                "success": True,
-                "message": f"Email service encountered an issue, but report has been generated and stored for {recipient_email}.",
+                "success": False,
+                "message": f"Failed to send email: {str(e)}. Please check your email address and try again.",
                 "error": str(e)
             }
         finally:
@@ -463,7 +464,7 @@ class EmailService:
             # Generate insights
             insights = self.generate_insights(patient_data, prediction_data)
             
-            # Create email with enhanced headers for better inbox delivery
+            # Create email with enhanced headers for better Gmail delivery
             msg = MIMEMultipart('alternative')
             msg['Subject'] = f"🏥 MediCare+ Medical Insurance Prediction Report - {prediction_amount}"
             msg['From'] = f"{self.sender_name} <{self.sender_email}>"
@@ -472,11 +473,13 @@ class EmailService:
             msg['X-Mailer'] = "MediCare+ Platform v1.0"
             msg['X-Priority'] = "3"  # Normal priority
             msg['Message-ID'] = f"<{datetime.now().strftime('%Y%m%d%H%M%S')}.{recipient_email.replace('@', '_at_').replace('.', '_dot_')}@medicare-plus.com>"
-            msg['Date'] = datetime.now().strftime('%a, %d %b %Y %H:%M:%S %z')
-            msg['List-Unsubscribe'] = f"<mailto:{self.sender_email}?subject=Unsubscribe>"
-            msg['X-Auto-Response-Suppress'] = "OOF, DR, RN, NRN, AutoReply"
-            msg['Precedence'] = "bulk"
+            msg['Date'] = datetime.now().strftime('%a, %d %b %Y %H:%M:%S +0530')
             msg['MIME-Version'] = "1.0"
+            msg['Content-Type'] = "multipart/alternative"
+            # Remove bulk headers that might trigger spam filters
+            # msg['List-Unsubscribe'] = f"<mailto:{self.sender_email}?subject=Unsubscribe>"
+            # msg['X-Auto-Response-Suppress'] = "OOF, DR, RN, NRN, AutoReply"
+            # msg['Precedence'] = "bulk"
             
             # Create HTML content
             template = Template(self.create_prediction_email_template())

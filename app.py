@@ -1843,8 +1843,8 @@ async def send_prediction_email(request: EmailPredictionRequest):
         if not gmail_email or not gmail_password:
             print("⚠️ Gmail credentials not configured - using demo mode")
             return EmailResponse(
-                success=True,
-                message=f"Demo: Prediction report generated for {request.email}! Email service is in demo mode."
+                success=False,
+                message=f"Email service is not configured. Please set GMAIL_EMAIL and GMAIL_APP_PASSWORD environment variables to enable email functionality."
             )
         
         # Use async email sending with timeout
@@ -1874,8 +1874,8 @@ async def send_prediction_email(request: EmailPredictionRequest):
             print(f"⏱️ Email operation timed out after {processing_time:.2f} seconds")
             
             return EmailResponse(
-                success=True,
-                message=f"Email processing timed out, but report has been queued for {request.email}. You may receive it shortly."
+                success=False,
+                message=f"Email sending timed out after {processing_time:.1f} seconds. Please try again or check your internet connection."
             )
             
     except Exception as e:
@@ -1885,8 +1885,8 @@ async def send_prediction_email(request: EmailPredictionRequest):
         print(f"Full traceback: {traceback.format_exc()}")
         
         return EmailResponse(
-            success=True,
-            message=f"Email service encountered an issue, but report has been generated for {request.email}."
+            success=False,
+            message=f"Email service encountered an error: {str(e)}. Please try again later."
         )
 
 @app.get('/admin/datasets')
