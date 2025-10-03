@@ -503,14 +503,14 @@ async def signup(payload: UserIn):
             import re
             email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
             if not re.match(email_pattern, payload.email):
-                raise HTTPException(status_code=400, detail='Invalid email format')
+                raise HTTPException(status_code=400, detail='❌ Please enter a valid email address (e.g., user@gmail.com)')
             
             # Allow any password length - user's choice
             
             # Check if user already exists
             existing_user = await supabase_client.get_user(payload.email)
             if existing_user:
-                raise HTTPException(status_code=400, detail='Email already exists')
+                raise HTTPException(status_code=400, detail=f'❌ An account with \'{payload.email}\' already exists. Please login instead.')
             
             # Create user in Supabase
             is_admin = payload.email == "admin@example.com"
@@ -519,7 +519,7 @@ async def signup(payload: UserIn):
             if "error" in result:
                 raise HTTPException(status_code=500, detail=result["error"])
             
-            return {"message": "User created successfully", "email": payload.email}
+            return {"message": "✅ Account created successfully! Welcome to MediCare+", "email": payload.email}
         except HTTPException:
             raise
         except Exception as e:
@@ -530,7 +530,7 @@ async def signup(payload: UserIn):
     users = await load_users()
     
     if payload.email in users:
-        raise HTTPException(status_code=400, detail='Email already exists')
+        raise HTTPException(status_code=400, detail=f'❌ An account with \'{payload.email}\' already exists. Please login instead.')
     
     # Allow any password length - user's choice
     
@@ -538,7 +538,7 @@ async def signup(payload: UserIn):
     import re
     email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     if not re.match(email_pattern, payload.email):
-        raise HTTPException(status_code=400, detail='Invalid email format')
+        raise HTTPException(status_code=400, detail='❌ Please enter a valid email address (e.g., user@gmail.com)')
     
     # For demo purposes, store password in plain text (NOT for production!)
     users[payload.email] = {
@@ -546,14 +546,17 @@ async def signup(payload: UserIn):
         "created_at": datetime.now().isoformat(),
         "is_admin": payload.email == "admin@example.com"  # Admin email gets admin rights
     }
-    
     await save_users(users)
-    return {"message": "User created successfully", "email": payload.email}
+    return {"message": "✅ Account created successfully! Welcome to MediCare+", "email": payload.email}
 
 @app.post('/login')
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    """Authenticate user and return JWT token"""
+    """Authenticate user and return JWT token with improved error messages"""
     print(f"Login attempt for: {form_data.username}")  # Debug log
+    
+    # Basic validation first
+    if not form_data.username or not form_data.password:
+        raise HTTPException(status_code=400, detail="❌ Please enter both email and password")
     
     # Try Supabase first
     if supabase_client.is_enabled():
@@ -569,7 +572,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
                 }
             elif user:
                 print(f"Password mismatch for user: {form_data.username}")
-                raise HTTPException(status_code=401, detail='Invalid email or password')
+                raise HTTPException(status_code=401, detail=f"❌ Incorrect password for '{form_data.username}'. Please try again.")
             else:
                 print(f"User not found in Supabase: {form_data.username}")
                 # Fall through to JSON fallback
@@ -601,7 +604,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
                 "is_admin": False
             }
         }
-        save_users(default_users)
+        await save_users(default_users)
         users = default_users
     
     # Try to find user by email (form_data.username will contain email)
@@ -609,7 +612,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     if not user:
         print(f"User not found: {form_data.username}")  # Debug log
         print(f"Available users: {list(users.keys())}")  # Debug log
-        raise HTTPException(status_code=401, detail='Invalid email or password')
+        raise HTTPException(status_code=401, detail=f"❌ No account found with email '{form_data.username}'. Please sign up first.")
     
     print(f"User found: {form_data.username}")  # Debug log
     print(f"Stored password: {user['password']}")  # Debug log
@@ -621,7 +624,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     print(f"Password valid: {password_valid}")  # Debug log
     
     if not password_valid:
-        raise HTTPException(status_code=401, detail='Invalid email or password')
+        raise HTTPException(status_code=401, detail=f"❌ Incorrect password for '{form_data.username}'. Please try again.")
     
     token = create_access_token({"sub": form_data.username, "is_admin": user.get("is_admin", False)})
     return {
@@ -1817,21 +1820,21 @@ async def admin_retrain_fast(current_user: str = Depends(get_current_user_from_t
 @app.post("/send-prediction-email", response_model=EmailResponse)
 async def send_prediction_email(request: EmailPredictionRequest):
     """
-    Complete Gmail email endpoint with verified delivery - only returns success when email actually reaches Gmail
+    Fixed Gmail email endpoint with VERIFIED delivery - only returns success when email actually reaches Gmail inbox
     """
     start_time = datetime.now()
     
     try:
-        print(f"📧 Processing email request for: {request.email} (COMPLETE FIX - Verified delivery)")
+        print(f"📧 Processing email request for: {request.email} (DELIVERY FIX - Verified Gmail delivery)")
         
-        # Import complete email fix service
-        from fix_gmail_email_complete import CompleteEmailFix
+        # Import the new email delivery fix service
+        from fix_email_delivery_complete import EmailDeliveryFix
         
-        # Create complete email service instance
-        complete_email_service = CompleteEmailFix()
+        # Create email delivery fix service instance
+        email_delivery_service = EmailDeliveryFix()
         
-        # Use complete email service with verified delivery
-        result = await complete_email_service.send_prediction_email(
+        # Use the fixed email service with verified delivery
+        result = await email_delivery_service.send_prediction_email(
             recipient_email=str(request.email),
             prediction_data=request.prediction,
             patient_data=request.patient_data
@@ -1840,10 +1843,10 @@ async def send_prediction_email(request: EmailPredictionRequest):
         processing_time = (datetime.now() - start_time).total_seconds()
         print(f"⏱️ Email processing completed in {processing_time:.2f} seconds")
         
-        # Return VERIFIED feedback - success only if email actually delivered
+        # Return HONEST feedback - success only if email actually delivered to Gmail
         return EmailResponse(
-            success=result.get("success", False),  # Default to False for safety
-            message=result.get("message", f"Email processing failed for {request.email}")
+            success=result.get("success", False),
+            message=result.get("message", f"❌ Email delivery failed for {request.email}")
         )
             
     except Exception as e:
