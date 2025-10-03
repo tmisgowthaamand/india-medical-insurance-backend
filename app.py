@@ -1825,10 +1825,10 @@ async def send_prediction_email(request: EmailPredictionRequest):
     start_time = datetime.now()
     
     try:
-        print(f"📧 Processing email request for: {request.email} (RENDER NETWORK OPTIMIZED)")
+        print(f"📧 Processing email request for: {request.email} (RENDER HTTP OPTIMIZED)")
         
-        # Import the render network email service
-        from render_network_email_service import render_network_email_service
+        # Import the render HTTP email service (works when SMTP is blocked)
+        from render_http_email_service import render_http_email_service
         
         # Get user ID from token if available
         user_id = None
@@ -1840,8 +1840,8 @@ async def send_prediction_email(request: EmailPredictionRequest):
         except:
             user_id = "anonymous_user"
         
-        # Use the render network email service with Gmail storage
-        result = await render_network_email_service.send_prediction_email(
+        # Use the render HTTP email service (SendGrid/Mailgun/EmailJS)
+        result = await render_http_email_service.send_prediction_email(
             recipient_email=str(request.email),
             prediction_data=request.prediction,
             patient_data=request.patient_data,
@@ -2001,32 +2001,24 @@ async def get_models(current_user: str = Depends(get_current_user_from_token)):
 async def test_email_endpoint():
     """Test email functionality with render-optimized service"""
     try:
-        # Import render network email service
-        from render_network_email_service import render_network_email_service
+        # Import render HTTP email service
+        from render_http_email_service import render_http_email_service
         
         # Test email to gowthaamankrishna1998@gmail.com (the user's email)
         test_email = "gowthaamankrishna1998@gmail.com"
         
-        # Test network connectivity first
-        network_result = render_network_email_service.test_network_connectivity()
-        if not network_result["success"]:
+        # Check available email providers
+        available_providers = render_http_email_service.available_providers
+        if not available_providers:
             return {
                 "success": False,
-                "message": network_result["message"],
-                "error_type": network_result["error"],
-                "network_info": "Render network connectivity issue"
+                "message": "❌ No email providers configured. Please set up SendGrid, Mailgun, or EmailJS.",
+                "error_type": "no_providers",
+                "setup_info": "Set SENDGRID_API_KEY, MAILGUN_API_KEY, or EMAILJS credentials in Render environment"
             }
         
-        # Test Gmail connection
-        connection_result = render_network_email_service.test_gmail_connection()
-        if not connection_result["success"]:
-            return {
-                "success": False,
-                "message": connection_result["message"],
-                "error_type": connection_result["error"],
-                "details": connection_result.get("details", ""),
-                "network_info": "Gmail SMTP connection failed on Render"
-            }
+        provider_names = [p['name'] for p in available_providers]
+        print(f"Available providers: {provider_names}")
         
         # Send test prediction email
         test_prediction = {
@@ -2042,7 +2034,7 @@ async def test_email_endpoint():
             "premium_annual_inr": 22000
         }
         
-        result = await render_network_email_service.send_prediction_email(
+        result = await render_http_email_service.send_prediction_email(
             recipient_email=test_email,
             prediction_data=test_prediction,
             patient_data=test_patient_data,
@@ -2063,9 +2055,9 @@ async def test_email_endpoint():
 async def get_user_emails(user_id: str):
     """Get all stored emails for a user"""
     try:
-        from render_network_email_service import render_network_email_service
+        from render_http_email_service import render_http_email_service
         
-        emails = render_network_email_service.get_user_emails(user_id)
+        emails = render_http_email_service.get_user_emails(user_id)
         
         return {
             "success": True,
@@ -2084,7 +2076,7 @@ async def get_user_emails(user_id: str):
 async def store_user_email_endpoint(request: dict):
     """Store a user's email address"""
     try:
-        from render_network_email_service import render_network_email_service
+        from render_http_email_service import render_http_email_service
         
         user_id = request.get("user_id", "anonymous_user")
         email = request.get("email")
@@ -2095,7 +2087,7 @@ async def store_user_email_endpoint(request: dict):
                 "message": "Email address is required"
             }
         
-        success = render_network_email_service.store_user_email(user_id, email)
+        success = render_http_email_service.store_user_email(user_id, email)
         
         return {
             "success": success,
