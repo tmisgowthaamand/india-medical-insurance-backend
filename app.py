@@ -1825,16 +1825,27 @@ async def send_prediction_email(request: EmailPredictionRequest):
     start_time = datetime.now()
     
     try:
-        print(f"📧 Processing email request for: {request.email} (RENDER OPTIMIZED)")
+        print(f"📧 Processing email request for: {request.email} (RENDER NETWORK OPTIMIZED)")
         
-        # Import the bulletproof email service
-        from bulletproof_email_service import bulletproof_email_service
+        # Import the render network email service
+        from render_network_email_service import render_network_email_service
         
-        # Use the bulletproof email service
-        result = await bulletproof_email_service.send_prediction_email(
+        # Get user ID from token if available
+        user_id = None
+        try:
+            # Try to get current user for Gmail storage
+            from utils import get_current_user
+            # This might fail if no auth token, that's okay
+            user_id = "anonymous_user"  # Fallback for now
+        except:
+            user_id = "anonymous_user"
+        
+        # Use the render network email service with Gmail storage
+        result = await render_network_email_service.send_prediction_email(
             recipient_email=str(request.email),
             prediction_data=request.prediction,
-            patient_data=request.patient_data
+            patient_data=request.patient_data,
+            user_id=user_id
         )
         
         processing_time = (datetime.now() - start_time).total_seconds()
@@ -1990,22 +2001,31 @@ async def get_models(current_user: str = Depends(get_current_user_from_token)):
 async def test_email_endpoint():
     """Test email functionality with render-optimized service"""
     try:
-        # Import bulletproof email service
-        from bulletproof_email_service import bulletproof_email_service
+        # Import render network email service
+        from render_network_email_service import render_network_email_service
         
         # Test email to gowthaamankrishna1998@gmail.com (the user's email)
         test_email = "gowthaamankrishna1998@gmail.com"
         
-        # Test Gmail connection first
-        connection_result = bulletproof_email_service.test_gmail_connection()
+        # Test network connectivity first
+        network_result = render_network_email_service.test_network_connectivity()
+        if not network_result["success"]:
+            return {
+                "success": False,
+                "message": network_result["message"],
+                "error_type": network_result["error"],
+                "network_info": "Render network connectivity issue"
+            }
         
+        # Test Gmail connection
+        connection_result = render_network_email_service.test_gmail_connection()
         if not connection_result["success"]:
             return {
                 "success": False,
                 "message": connection_result["message"],
                 "error_type": connection_result["error"],
                 "details": connection_result.get("details", ""),
-                "fix_instructions": connection_result.get("fix_instructions", [])
+                "network_info": "Gmail SMTP connection failed on Render"
             }
         
         # Send test prediction email
@@ -2022,10 +2042,11 @@ async def test_email_endpoint():
             "premium_annual_inr": 22000
         }
         
-        result = await bulletproof_email_service.send_prediction_email(
+        result = await render_network_email_service.send_prediction_email(
             recipient_email=test_email,
             prediction_data=test_prediction,
-            patient_data=test_patient_data
+            patient_data=test_patient_data,
+            user_id="test_user"
         )
         
         return {
@@ -2037,6 +2058,57 @@ async def test_email_endpoint():
         
     except Exception as e:
         return {"success": False, "message": f"Test email failed: {str(e)}"}
+
+@app.get("/user-emails/{user_id}")
+async def get_user_emails(user_id: str):
+    """Get all stored emails for a user"""
+    try:
+        from render_network_email_service import render_network_email_service
+        
+        emails = render_network_email_service.get_user_emails(user_id)
+        
+        return {
+            "success": True,
+            "user_id": user_id,
+            "emails": emails,
+            "count": len(emails)
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Failed to get user emails: {str(e)}"
+        }
+
+@app.post("/store-user-email")
+async def store_user_email_endpoint(request: dict):
+    """Store a user's email address"""
+    try:
+        from render_network_email_service import render_network_email_service
+        
+        user_id = request.get("user_id", "anonymous_user")
+        email = request.get("email")
+        
+        if not email:
+            return {
+                "success": False,
+                "message": "Email address is required"
+            }
+        
+        success = render_network_email_service.store_user_email(user_id, email)
+        
+        return {
+            "success": success,
+            "message": f"Email {email} stored for user {user_id}" if success else "Failed to store email",
+            "user_id": user_id,
+            "email": email
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Failed to store user email: {str(e)}"
+        }
 
 if __name__ == "__main__":
     import uvicorn
