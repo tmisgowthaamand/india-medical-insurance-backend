@@ -1,25 +1,47 @@
 #!/usr/bin/env python3
+"""
+Quick test of bulletproof email service for timeout fix verification
+"""
 import asyncio
-from enhanced_email_service import enhanced_email_service
+from bulletproof_email_service import bulletproof_email_service
 
 async def quick_test():
-    print("Quick Email Service Test")
-    print("-" * 30)
+    print("🧪 QUICK BULLETPROOF EMAIL TEST")
+    print("="*50)
     
-    # Test data
-    prediction_data = {"prediction": 25000, "confidence": 0.85}
-    patient_data = {"age": 30, "bmi": 22.5, "gender": "Male", "smoker": "No", "region": "Southeast", "premium_annual_inr": 15000}
+    # Test connection first
+    print("🔗 Testing Gmail connection...")
+    connection_result = bulletproof_email_service.test_gmail_connection()
     
-    # Test immediate feedback
-    result = await enhanced_email_service.send_prediction_email_with_immediate_feedback(
-        recipient_email="test@example.com",
+    if not connection_result['success']:
+        print(f"❌ Connection failed: {connection_result['message']}")
+        return
+    
+    print("✅ Connection successful!")
+    
+    # Test email sending
+    print("\n📧 Testing email delivery...")
+    prediction_data = {"prediction": 25000, "confidence": 0.88}
+    patient_data = {
+        "age": 28, 
+        "bmi": 24.5, 
+        "gender": "Male", 
+        "smoker": "No", 
+        "region": "South", 
+        "premium_annual_inr": 22000
+    }
+    
+    result = await bulletproof_email_service.send_prediction_email(
+        recipient_email="gowthaamankrishna1998@gmail.com",
         prediction_data=prediction_data,
         patient_data=patient_data
     )
     
+    print(f"\n📊 RESULT:")
     print(f"Success: {result.get('success')}")
     print(f"Message: {result.get('message')}")
-    print(f"Immediate: {result.get('immediate')}")
+    if 'processing_time' in result:
+        print(f"Time: {result['processing_time']}s")
 
 if __name__ == "__main__":
     asyncio.run(quick_test())
