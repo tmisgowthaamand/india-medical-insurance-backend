@@ -1,0 +1,108 @@
+[
+  {
+    "recipient": "gowthaamankrishna1998@gmail.com",
+    "user_id": "anonymous_user",
+    "prediction_data": {
+      "prediction": 17194.125673721708,
+      "confidence": 0.00027616407270785517,
+      "input_data": {
+        "age": 34,
+        "bmi": 23,
+        "gender": "Male",
+        "smoker": "No",
+        "region": "East",
+        "premium_annual_inr": 35700
+      }
+    },
+    "patient_data": {
+      "age": "34",
+      "bmi": "23",
+      "gender": "Male",
+      "smoker": "No",
+      "region": "East",
+      "premium_annual_inr": "35700",
+      "email": "gowthaamankrishna1998@gmail.com",
+      "report_generated": "2025-10-03T09:31:54.348Z"
+    },
+    "timestamp": "2025-10-03T15:01:54.890148",
+    "status": "stored_locally",
+    "html_content": "\n        <!DOCTYPE html>\n        <html>\n        <head>\n            <meta charset=\"UTF-8\">\n            <title>MediCare+ Report</title>\n        </head>\n        <body style=\"font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f4f4f4;\">\n            <div style=\"max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px;\">\n                <div style=\"background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 30px;\">\n                    <h1 style=\"margin: 0; font-size: 24px;\">\ud83c\udfe5 MediCare+ Medical Insurance Report</h1>\n                    <p style=\"margin: 5px 0 0 0;\">AI-Powered Insurance Analysis</p>\n                </div>\n                \n                <div style=\"background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;\">\n                    <div style=\"font-size: 28px; font-weight: bold;\">\u20b917,194</div>\n                    <div>Confidence: 0.0% | October 03, 2025 at 03:01 PM IST</div>\n                </div>\n                \n                <div style=\"margin-bottom: 25px;\">\n                    <h2 style=\"color: #667eea;\">\ud83d\udccb Patient Details</h2>\n                    <div style=\"display: grid; grid-template-columns: 1fr 1fr; gap: 15px;\">\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>Age:</strong> 34 years\n                        </div>\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>BMI:</strong> 23\n                        </div>\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>Gender:</strong> Male\n                        </div>\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>Smoker:</strong> No\n                        </div>\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>Region:</strong> East\n                        </div>\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>Premium:</strong> \u20b935700\n                        </div>\n                    </div>\n                </div>\n                \n                <div style=\"background: #e9ecef; padding: 15px; border-radius: 5px; font-size: 12px; color: #666;\">\n                    <strong>\u26a0\ufe0f Disclaimer:</strong> This AI prediction is for informational purposes only.\n                </div>\n                \n                <div style=\"text-align: center; margin-top: 30px; color: #666; font-size: 12px;\">\n                    <p><strong>MediCare+ Platform</strong> | October 03, 2025 at 03:01 PM IST</p>\n                    <p>Report sent to: gowthaamankrishna1998@gmail.com</p>\n                </div>\n            </div>\n        </body>\n        </html>\n        "
+  },
+  {
+    "recipient": "gowthaamankrishna1998@gmail.com",
+    "user_id": "anonymous_user",
+    "prediction_data": {
+      "prediction": 17194.125673721708,
+      "confidence": 0.00027616407270785517,
+      "input_data": {
+        "age": 34,
+        "bmi": 23,
+        "gender": "Male",
+        "smoker": "No",
+        "region": "East",
+        "premium_annual_inr": 35700
+      }
+    },
+    "patient_data": {
+      "age": "34",
+      "bmi": "23",
+      "gender": "Male",
+      "smoker": "No",
+      "region": "East",
+      "premium_annual_inr": "35700",
+      "email": "gowthaamankrishna1998@gmail.com",
+      "report_generated": "2025-10-03T09:32:37.654Z"
+    },
+    "timestamp": "2025-10-03T15:02:37.991602",
+    "status": "stored_locally",
+    "html_content": "\n        <!DOCTYPE html>\n        <html>\n        <head>\n            <meta charset=\"UTF-8\">\n            <title>MediCare+ Report</title>\n        </head>\n        <body style=\"font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f4f4f4;\">\n            <div style=\"max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px;\">\n                <div style=\"background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 30px;\">\n                    <h1 style=\"margin: 0; font-size: 24px;\">\ud83c\udfe5 MediCare+ Medical Insurance Report</h1>\n                    <p style=\"margin: 5px 0 0 0;\">AI-Powered Insurance Analysis</p>\n                </div>\n                \n                <div style=\"background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;\">\n                    <div style=\"font-size: 28px; font-weight: bold;\">\u20b917,194</div>\n                    <div>Confidence: 0.0% | October 03, 2025 at 03:02 PM IST</div>\n                </div>\n                \n                <div style=\"margin-bottom: 25px;\">\n                    <h2 style=\"color: #667eea;\">\ud83d\udccb Patient Details</h2>\n                    <div style=\"display: grid; grid-template-columns: 1fr 1fr; gap: 15px;\">\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>Age:</strong> 34 years\n                        </div>\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>BMI:</strong> 23\n                        </div>\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>Gender:</strong> Male\n                        </div>\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>Smoker:</strong> No\n                        </div>\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>Region:</strong> East\n                        </div>\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>Premium:</strong> \u20b935700\n                        </div>\n                    </div>\n                </div>\n                \n                <div style=\"background: #e9ecef; padding: 15px; border-radius: 5px; font-size: 12px; color: #666;\">\n                    <strong>\u26a0\ufe0f Disclaimer:</strong> This AI prediction is for informational purposes only.\n                </div>\n                \n                <div style=\"text-align: center; margin-top: 30px; color: #666; font-size: 12px;\">\n                    <p><strong>MediCare+ Platform</strong> | October 03, 2025 at 03:02 PM IST</p>\n                    <p>Report sent to: gowthaamankrishna1998@gmail.com</p>\n                </div>\n            </div>\n        </body>\n        </html>\n        "
+  },
+  {
+    "recipient": "gowthaamankrishna1998@gmail.com",
+    "user_id": "anonymous_user",
+    "prediction_data": {
+      "prediction": 18726.824861340072,
+      "confidence": 0.00026112810039424257,
+      "input_data": {
+        "age": 36,
+        "bmi": 23,
+        "gender": "Female",
+        "smoker": "No",
+        "region": "South",
+        "premium_annual_inr": 36000
+      }
+    },
+    "patient_data": {
+      "age": "36",
+      "bmi": "23",
+      "gender": "Female",
+      "smoker": "No",
+      "region": "South",
+      "premium_annual_inr": "36000",
+      "email": "gowthaamankrishna1998@gmail.com",
+      "report_generated": "2025-10-03T09:41:26.286Z"
+    },
+    "timestamp": "2025-10-03T15:11:26.854637",
+    "status": "stored_locally",
+    "html_content": "\n        <!DOCTYPE html>\n        <html>\n        <head>\n            <meta charset=\"UTF-8\">\n            <title>MediCare+ Report</title>\n        </head>\n        <body style=\"font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f4f4f4;\">\n            <div style=\"max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px;\">\n                <div style=\"background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 30px;\">\n                    <h1 style=\"margin: 0; font-size: 24px;\">\ud83c\udfe5 MediCare+ Medical Insurance Report</h1>\n                    <p style=\"margin: 5px 0 0 0;\">AI-Powered Insurance Analysis</p>\n                </div>\n                \n                <div style=\"background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;\">\n                    <div style=\"font-size: 28px; font-weight: bold;\">\u20b918,727</div>\n                    <div>Confidence: 0.0% | October 03, 2025 at 03:11 PM IST</div>\n                </div>\n                \n                <div style=\"margin-bottom: 25px;\">\n                    <h2 style=\"color: #667eea;\">\ud83d\udccb Patient Details</h2>\n                    <div style=\"display: grid; grid-template-columns: 1fr 1fr; gap: 15px;\">\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>Age:</strong> 36 years\n                        </div>\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>BMI:</strong> 23\n                        </div>\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>Gender:</strong> Female\n                        </div>\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>Smoker:</strong> No\n                        </div>\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>Region:</strong> South\n                        </div>\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>Premium:</strong> \u20b936000\n                        </div>\n                    </div>\n                </div>\n                \n                <div style=\"background: #e9ecef; padding: 15px; border-radius: 5px; font-size: 12px; color: #666;\">\n                    <strong>\u26a0\ufe0f Disclaimer:</strong> This AI prediction is for informational purposes only.\n                </div>\n                \n                <div style=\"text-align: center; margin-top: 30px; color: #666; font-size: 12px;\">\n                    <p><strong>MediCare+ Platform</strong> | October 03, 2025 at 03:11 PM IST</p>\n                    <p>Report sent to: gowthaamankrishna1998@gmail.com</p>\n                </div>\n            </div>\n        </body>\n        </html>\n        "
+  },
+  {
+    "recipient": "gowthaamaneswar1998@gmail.com",
+    "user_id": "sendgrid_test",
+    "prediction_data": {
+      "prediction": 15873.78,
+      "confidence": 0.85
+    },
+    "patient_data": {
+      "age": 25,
+      "bmi": 23.5,
+      "gender": "Male",
+      "smoker": "No",
+      "region": "South",
+      "premium_annual_inr": 15000
+    },
+    "timestamp": "2025-10-03T15:12:22.003751",
+    "status": "stored_locally",
+    "html_content": "\n        <!DOCTYPE html>\n        <html>\n        <head>\n            <meta charset=\"UTF-8\">\n            <title>MediCare+ Report</title>\n        </head>\n        <body style=\"font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f4f4f4;\">\n            <div style=\"max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px;\">\n                <div style=\"background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 30px;\">\n                    <h1 style=\"margin: 0; font-size: 24px;\">\ud83c\udfe5 MediCare+ Medical Insurance Report</h1>\n                    <p style=\"margin: 5px 0 0 0;\">AI-Powered Insurance Analysis</p>\n                </div>\n                \n                <div style=\"background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;\">\n                    <div style=\"font-size: 28px; font-weight: bold;\">\u20b915,874</div>\n                    <div>Confidence: 85.0% | October 03, 2025 at 03:12 PM IST</div>\n                </div>\n                \n                <div style=\"margin-bottom: 25px;\">\n                    <h2 style=\"color: #667eea;\">\ud83d\udccb Patient Details</h2>\n                    <div style=\"display: grid; grid-template-columns: 1fr 1fr; gap: 15px;\">\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>Age:</strong> 25 years\n                        </div>\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>BMI:</strong> 23.5\n                        </div>\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>Gender:</strong> Male\n                        </div>\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>Smoker:</strong> No\n                        </div>\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>Region:</strong> South\n                        </div>\n                        <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px;\">\n                            <strong>Premium:</strong> \u20b915000\n                        </div>\n                    </div>\n                </div>\n                \n                <div style=\"background: #e9ecef; padding: 15px; border-radius: 5px; font-size: 12px; color: #666;\">\n                    <strong>\u26a0\ufe0f Disclaimer:</strong> This AI prediction is for informational purposes only.\n                </div>\n                \n                <div style=\"text-align: center; margin-top: 30px; color: #666; font-size: 12px;\">\n                    <p><strong>MediCare+ Platform</strong> | October 03, 2025 at 03:12 PM IST</p>\n                    <p>Report sent to: gowthaamaneswar1998@gmail.com</p>\n                </div>\n            </div>\n        </body>\n        </html>\n        "
+  }
+]

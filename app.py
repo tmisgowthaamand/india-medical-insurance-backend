@@ -1820,47 +1820,37 @@ async def admin_retrain_fast(current_user: str = Depends(get_current_user_from_t
 @app.post("/send-prediction-email", response_model=EmailResponse)
 async def send_prediction_email(request: EmailPredictionRequest):
     """
-    Render-optimized Gmail email endpoint with proper environment variable handling
+    Bulletproof Gmail email endpoint with comprehensive error handling
+    Uses the bulletproof_email_service for reliable email delivery
     """
     start_time = datetime.now()
     
     try:
-        print(f"📧 Processing email request for: {request.email} (RENDER OPTIMIZED)")
+        print(f"📧 Processing email request for: {request.email} (BULLETPROOF SERVICE)")
         
-        # Try HTTP email service first, fallback to builtin if requests not available
-        email_service = None
-        try:
-            from render_http_email_service import render_http_email_service
-            email_service = render_http_email_service
-            print("✅ Using HTTP email service (with requests)")
-        except ImportError as e:
-            if "requests" in str(e):
-                print("⚠️ requests module not available, using builtin service")
-                from render_builtin_email_service import render_builtin_email_service
-                email_service = render_builtin_email_service
-            else:
-                raise e
+        # Use the bulletproof email service
+        from bulletproof_email_service import bulletproof_email_service
+        print("✅ Using bulletproof email service")
         
-        # Get user ID from token if available
-        user_id = None
-        try:
-            # Try to get current user for Gmail storage
-            from utils import get_current_user
-            # This might fail if no auth token, that's okay
-            user_id = "anonymous_user"  # Fallback for now
-        except:
-            user_id = "anonymous_user"
-        
-        # Use the available email service
-        result = await email_service.send_prediction_email(
+        # Send email using bulletproof service
+        result = await bulletproof_email_service.send_prediction_email(
             recipient_email=str(request.email),
             prediction_data=request.prediction,
-            patient_data=request.patient_data,
-            user_id=user_id
+            patient_data=request.patient_data
         )
         
         processing_time = (datetime.now() - start_time).total_seconds()
         print(f"⏱️ Email processing completed in {processing_time:.2f} seconds")
+        
+        # Save email to database if successful (optional)
+        if result.get("success", False):
+            try:
+                # Try to save email to users table
+                await supabase_client.save_email_to_users(str(request.email))
+                print(f"✅ Email {request.email} saved to users table")
+            except Exception as e:
+                print(f"⚠️ Could not save email to database: {e}")
+                # Don't fail the email send if database save fails
         
         # Return result with proper error handling
         return EmailResponse(
