@@ -1825,10 +1825,21 @@ async def send_prediction_email(request: EmailPredictionRequest):
     start_time = datetime.now()
     
     try:
-        print(f"📧 Processing email request for: {request.email} (RENDER HTTP OPTIMIZED)")
+        print(f"📧 Processing email request for: {request.email} (RENDER OPTIMIZED)")
         
-        # Import the render HTTP email service (works when SMTP is blocked)
-        from render_http_email_service import render_http_email_service
+        # Try HTTP email service first, fallback to builtin if requests not available
+        email_service = None
+        try:
+            from render_http_email_service import render_http_email_service
+            email_service = render_http_email_service
+            print("✅ Using HTTP email service (with requests)")
+        except ImportError as e:
+            if "requests" in str(e):
+                print("⚠️ requests module not available, using builtin service")
+                from render_builtin_email_service import render_builtin_email_service
+                email_service = render_builtin_email_service
+            else:
+                raise e
         
         # Get user ID from token if available
         user_id = None
@@ -1840,8 +1851,8 @@ async def send_prediction_email(request: EmailPredictionRequest):
         except:
             user_id = "anonymous_user"
         
-        # Use the render HTTP email service (SendGrid/Mailgun/EmailJS)
-        result = await render_http_email_service.send_prediction_email(
+        # Use the available email service
+        result = await email_service.send_prediction_email(
             recipient_email=str(request.email),
             prediction_data=request.prediction,
             patient_data=request.patient_data,
@@ -2001,24 +2012,39 @@ async def get_models(current_user: str = Depends(get_current_user_from_token)):
 async def test_email_endpoint():
     """Test email functionality with render-optimized service"""
     try:
-        # Import render HTTP email service
-        from render_http_email_service import render_http_email_service
+        # Try HTTP email service first, fallback to builtin if requests not available
+        email_service = None
+        service_name = ""
+        try:
+            from render_http_email_service import render_http_email_service
+            email_service = render_http_email_service
+            service_name = "HTTP Email Service (with requests)"
+        except ImportError as e:
+            if "requests" in str(e):
+                print("⚠️ requests module not available, using builtin service")
+                from render_builtin_email_service import render_builtin_email_service
+                email_service = render_builtin_email_service
+                service_name = "Builtin Email Service (no requests)"
+            else:
+                raise e
         
         # Test email to gowthaamankrishna1998@gmail.com (the user's email)
         test_email = "gowthaamankrishna1998@gmail.com"
         
         # Check available email providers
-        available_providers = render_http_email_service.available_providers
+        available_providers = email_service.available_providers
         if not available_providers:
             return {
                 "success": False,
-                "message": "❌ No email providers configured. Please set up SendGrid, Mailgun, or EmailJS.",
+                "message": "❌ No email providers configured. Please set up SendGrid, Mailgun, or configure local storage.",
                 "error_type": "no_providers",
-                "setup_info": "Set SENDGRID_API_KEY, MAILGUN_API_KEY, or EMAILJS credentials in Render environment"
+                "service_used": service_name,
+                "setup_info": "Set SENDGRID_API_KEY or MAILGUN_API_KEY in Render environment"
             }
         
         provider_names = [p['name'] for p in available_providers]
         print(f"Available providers: {provider_names}")
+        print(f"Using service: {service_name}")
         
         # Send test prediction email
         test_prediction = {
@@ -2034,7 +2060,7 @@ async def test_email_endpoint():
             "premium_annual_inr": 22000
         }
         
-        result = await render_http_email_service.send_prediction_email(
+        result = await email_service.send_prediction_email(
             recipient_email=test_email,
             prediction_data=test_prediction,
             patient_data=test_patient_data,
@@ -2055,9 +2081,15 @@ async def test_email_endpoint():
 async def get_user_emails(user_id: str):
     """Get all stored emails for a user"""
     try:
-        from render_http_email_service import render_http_email_service
+        # Try to get the appropriate email service
+        try:
+            from render_http_email_service import render_http_email_service
+            email_service = render_http_email_service
+        except ImportError:
+            from render_builtin_email_service import render_builtin_email_service
+            email_service = render_builtin_email_service
         
-        emails = render_http_email_service.get_user_emails(user_id)
+        emails = email_service.get_user_emails(user_id)
         
         return {
             "success": True,
@@ -2076,7 +2108,13 @@ async def get_user_emails(user_id: str):
 async def store_user_email_endpoint(request: dict):
     """Store a user's email address"""
     try:
-        from render_http_email_service import render_http_email_service
+        # Try to get the appropriate email service
+        try:
+            from render_http_email_service import render_http_email_service
+            email_service = render_http_email_service
+        except ImportError:
+            from render_builtin_email_service import render_builtin_email_service
+            email_service = render_builtin_email_service
         
         user_id = request.get("user_id", "anonymous_user")
         email = request.get("email")
@@ -2087,7 +2125,7 @@ async def store_user_email_endpoint(request: dict):
                 "message": "Email address is required"
             }
         
-        success = render_http_email_service.store_user_email(user_id, email)
+        success = email_service.store_user_email(user_id, email)
         
         return {
             "success": success,
