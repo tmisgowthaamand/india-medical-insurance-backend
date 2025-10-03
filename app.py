@@ -1817,21 +1817,21 @@ async def admin_retrain_fast(current_user: str = Depends(get_current_user_from_t
 @app.post("/send-prediction-email", response_model=EmailResponse)
 async def send_prediction_email(request: EmailPredictionRequest):
     """
-    Fixed email endpoint with honest feedback - only returns success when email actually reaches Gmail
+    Complete Gmail email endpoint with verified delivery - only returns success when email actually reaches Gmail
     """
     start_time = datetime.now()
     
     try:
-        print(f"📧 Processing email request for: {request.email} (FIXED - Honest feedback)")
+        print(f"📧 Processing email request for: {request.email} (COMPLETE FIX - Verified delivery)")
         
-        # Import fixed email service
-        from fix_email_delivery_issue import FixedEmailService
+        # Import complete email fix service
+        from fix_gmail_email_complete import CompleteEmailFix
         
-        # Create fixed email service instance
-        fixed_email_service = FixedEmailService()
+        # Create complete email service instance
+        complete_email_service = CompleteEmailFix()
         
-        # Use fixed email service with honest feedback
-        result = await fixed_email_service.send_prediction_email_with_honest_feedback(
+        # Use complete email service with verified delivery
+        result = await complete_email_service.send_prediction_email(
             recipient_email=str(request.email),
             prediction_data=request.prediction,
             patient_data=request.patient_data
@@ -1840,7 +1840,7 @@ async def send_prediction_email(request: EmailPredictionRequest):
         processing_time = (datetime.now() - start_time).total_seconds()
         print(f"⏱️ Email processing completed in {processing_time:.2f} seconds")
         
-        # Return HONEST feedback - success only if email actually sent
+        # Return VERIFIED feedback - success only if email actually delivered
         return EmailResponse(
             success=result.get("success", False),  # Default to False for safety
             message=result.get("message", f"Email processing failed for {request.email}")
@@ -1988,32 +1988,27 @@ async def get_models(current_user: str = Depends(get_current_user_from_token)):
 
 @app.post("/test-email")
 async def test_email_endpoint():
-    """Test email functionality"""
+    """Test email functionality with complete Gmail fix"""
     try:
-        # Test email data
-        test_prediction = {
-            "prediction": 25000.0,
-            "confidence": 0.85
-        }
-        test_patient_data = {
-            "age": 30,
-            "bmi": 25.5,
-            "gender": "Male",
-            "smoker": "No",
-            "region": "North",
-            "premium_annual_inr": 20000
+        # Import complete email fix service
+        from fix_gmail_email_complete import CompleteEmailFix
+        
+        # Create complete email service instance
+        complete_email_service = CompleteEmailFix()
+        
+        # Test email to perivihari8@gmail.com (the user's email)
+        test_email = "perivihari8@gmail.com"
+        
+        # Send test email
+        result = await complete_email_service.send_test_email(test_email)
+        
+        return {
+            "success": result.get("success", False),
+            "message": result.get("message", "Test email failed"),
+            "processing_time": result.get("processing_time", 0),
+            "recipient": test_email
         }
         
-        success = email_service.send_prediction_email(
-            recipient_email="gokrishna98@gmail.com",
-            prediction_data=test_prediction,
-            patient_data=test_patient_data
-        )
-        
-        if success:
-            return {"success": True, "message": "Test email sent successfully to gokrishna98@gmail.com"}
-        else:
-            return {"success": False, "message": "Failed to send test email"}
     except Exception as e:
         return {"success": False, "message": f"Test email failed: {str(e)}"}
 
