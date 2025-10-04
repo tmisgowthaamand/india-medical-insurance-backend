@@ -81,6 +81,23 @@ class SupabaseClient:
             logger.error(f"Error getting user: {e}")
             return None
     
+    async def update_user(self, email: str, user_data: Dict) -> Dict:
+        """Update existing user data"""
+        if not self.is_enabled():
+            return {"error": "Database not available"}
+        
+        try:
+            result = self.client.table("users").update(user_data).eq("email", email).execute()
+            if result.data:
+                logger.info(f"User updated successfully: {email}")
+                return {"success": True, "data": result.data[0]}
+            else:
+                logger.error(f"No user found to update: {email}")
+                return {"error": "User not found"}
+        except Exception as e:
+            logger.error(f"Error updating user: {e}")
+            return {"error": str(e)}
+    
     async def get_all_users(self) -> List[Dict]:
         """Get all users"""
         if not self.is_enabled():
