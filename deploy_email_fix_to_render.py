@@ -1,305 +1,179 @@
 #!/usr/bin/env python3
 """
-Deploy Email Fix to Render
-Applies the email functionality fixes to the Render deployment
+Deployment Script to Fix Email Functionality on Render
 """
 
 import os
 import sys
-import requests
+import subprocess
 import json
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
-
-def test_render_backend():
-    """Test if Render backend is accessible"""
-    
-    render_url = "https://srv-d3b668ogjchc73f9ece0.onrender.com"
-    
-    print("🌐 Testing Render Backend Accessibility")
-    print("=" * 50)
-    print(f"URL: {render_url}")
-    
-    try:
-        # Test health endpoint
-        response = requests.get(f"{render_url}/health", timeout=15)
-        
-        if response.status_code == 200:
-            print("✅ Render backend is accessible")
-            return True
-        else:
-            print(f"⚠️ Render backend returned status: {response.status_code}")
-            return False
-            
-    except requests.exceptions.Timeout:
-        print("⏰ Render backend is starting up (timeout)")
-        print("💡 Render services may take 30-60 seconds to wake up")
-        return False
-    except requests.exceptions.ConnectionError:
-        print("❌ Cannot connect to Render backend")
-        return False
-    except Exception as e:
-        print(f"❌ Error testing Render backend: {e}")
-        return False
-
-def test_render_email_functionality():
-    """Test email functionality on Render"""
-    
-    render_url = "https://srv-d3b668ogjchc73f9ece0.onrender.com"
-    
-    print("\n📧 Testing Email Functionality on Render")
+def check_environment_variables():
+    """Check if required environment variables are set"""
+    print("🔍 Checking Environment Variables")
     print("=" * 50)
     
-    # Test the problematic email
-    test_data = {
-        "email": "perivihk@gmail.com",
-        "prediction": {
-            "prediction": 25000.0,
-            "confidence": 0.85
-        },
-        "patient_data": {
-            "age": 35,
-            "bmi": 23.0,
-            "gender": "Male",
-            "smoker": "No",
-            "region": "East",
-            "premium_annual_inr": 30000
-        }
-    }
-    
-    try:
-        print(f"📧 Testing email: {test_data['email']}")
-        print("🚀 Sending request to Render...")
-        
-        response = requests.post(
-            f"{render_url}/send-prediction-email",
-            json=test_data,
-            headers={"Content-Type": "application/json"},
-            timeout=60  # Longer timeout for Render
-        )
-        
-        print(f"📊 Status Code: {response.status_code}")
-        
-        if response.status_code == 200:
-            result = response.json()
-            success = result.get('success', False)
-            message = result.get('message', 'No message')
-            
-            print(f"✅ Success: {success}")
-            print(f"📝 Message: {message}")
-            
-            if success:
-                print("\n🎉 EMAIL FUNCTIONALITY WORKING ON RENDER!")
-                return True
-            else:
-                print("\n❌ Email sending failed on Render")
-                return False
-        else:
-            print(f"\n❌ HTTP Error: {response.status_code}")
-            try:
-                error_data = response.json()
-                print(f"📝 Error: {error_data.get('detail', 'Unknown error')}")
-            except:
-                print(f"📝 Error Text: {response.text}")
-            return False
-            
-    except requests.exceptions.Timeout:
-        print("\n⏰ Request timed out")
-        print("💡 Render service might be cold starting")
-        return False
-    except Exception as e:
-        print(f"\n❌ Error: {e}")
-        return False
-
-def check_render_environment_status():
-    """Check if Render environment variables are properly configured"""
-    
-    print("\n🔍 Checking Render Environment Configuration")
-    print("=" * 50)
-    
-    # These should be set in Render dashboard
     required_vars = [
         "GMAIL_EMAIL",
-        "GMAIL_APP_PASSWORD", 
+        "GMAIL_APP_PASSWORD",
         "SUPABASE_URL",
         "SUPABASE_SERVICE_ROLE_KEY"
     ]
     
-    print("📋 Required Environment Variables for Render:")
+    missing_vars = []
+    
     for var in required_vars:
-        print(f"   - {var}")
+        value = os.getenv(var)
+        if value:
+            if var == "GMAIL_APP_PASSWORD":
+                print(f"✅ {var}: {'*' * len(value)}")
+            else:
+                print(f"✅ {var}: {value[:50]}{'...' if len(value) > 50 else ''}")
+        else:
+            print(f"❌ {var}: NOT SET")
+            missing_vars.append(var)
     
-    print("\n💡 To configure these in Render:")
-    print("1. Go to Render Dashboard")
-    print("2. Select your backend service")
-    print("3. Go to Environment tab")
-    print("4. Add each variable with proper values")
-    print("5. Redeploy the service")
+    return len(missing_vars) == 0
+
+def create_render_env_file():
+    """Create a .env file for Render deployment"""
+    print("\n📝 Creating .env file for Render")
+    print("=" * 50)
     
-    return True
+    env_content = """# Render Environment Variables for MediCare+ Email Functionality
 
-def create_render_deployment_checklist():
-    """Create a checklist for Render deployment"""
-    
-    checklist = """
-# Render Deployment Checklist for Email Fix
-
-## ✅ Pre-deployment Checklist
-
-### 1. Code Changes Applied
-- [x] Updated app.py email endpoint logic
-- [x] Updated database.py email saving logic  
-- [x] Email service handles existing emails properly
-- [x] All fixes tested on localhost
-
-### 2. Environment Variables Required
-Add these to Render Dashboard > Environment:
-
-```
+# Gmail Configuration (Required for email functionality)
 GMAIL_EMAIL=gokrishna98@gmail.com
-GMAIL_APP_PASSWORD=your-16-character-app-password
+GMAIL_APP_PASSWORD=lwkvzupqanxvafrm
+
+# Supabase Configuration
 SUPABASE_URL=https://gucyzhjyciqnvxedmoxo.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-ALLOWED_ORIGINS=https://your-frontend.vercel.app,http://localhost:3000
-```
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1Y3l6aGp5Y2lxbnZ4ZWRtb3hvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1ODg4MDQxOSwiZXhwIjoyMDc0NDU2NDE5fQ.yBrXifdpZ9vrymLQ1EiZnspxHfF0x73wAP0Mfl96kk4
 
-### 3. Gmail App Password Setup
-- [ ] Enable 2-Factor Authentication on Gmail
-- [ ] Generate App Password: Google Account > Security > 2-Step Verification > App passwords
-- [ ] Use 16-character password (no spaces)
+# CORS Configuration
+ALLOWED_ORIGINS=https://india-medical-insurance-frontend.vercel.app,http://localhost:3000,http://localhost:3001
 
-## 🚀 Deployment Steps
+# JWT Configuration
+JWT_SECRET_KEY=medical_insurance_dashboard_jwt_secret_key_2024_change_in_production
+JWT_ALGORITHM=HS256
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
 
-### 1. Update Environment Variables
-- [ ] Go to Render Dashboard
-- [ ] Select backend service (srv-d3b668ogjchc73f9ece0)
-- [ ] Navigate to Environment tab
-- [ ] Add/update all required variables
-- [ ] Save changes
-
-### 2. Deploy Updated Code
-- [ ] Push code changes to GitHub repository
-- [ ] Render will auto-deploy from GitHub
-- [ ] Wait for deployment to complete (5-10 minutes)
-
-### 3. Test Deployment
-- [ ] Wait for service to start (may take 30-60 seconds)
-- [ ] Test health endpoint: GET /health
-- [ ] Test email endpoint with existing email: perivihk@gmail.com
-- [ ] Verify email is sent successfully
-
-## 🧪 Testing Commands
-
-### Test Render Backend
-```bash
-curl https://srv-d3b668ogjchc73f9ece0.onrender.com/health
-```
-
-### Test Email Functionality
-```bash
-curl -X POST https://srv-d3b668ogjchc73f9ece0.onrender.com/send-prediction-email \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "perivihk@gmail.com",
-    "prediction": {"prediction": 25000.0, "confidence": 0.85},
-    "patient_data": {
-      "age": 35, "bmi": 23.0, "gender": "Male", 
-      "smoker": "No", "region": "East", "premium_annual_inr": 30000
-    }
-  }'
-```
-
-## 🔧 Troubleshooting
-
-### If Email Fails:
-1. Check Render logs for error messages
-2. Verify Gmail App Password is correct
-3. Ensure all environment variables are set
-4. Check Supabase connection
-
-### If Service Won't Start:
-1. Check Render build logs
-2. Verify all dependencies in requirements.txt
-3. Check for Python syntax errors
-4. Ensure all imports are available
-
-### If Database Errors:
-1. Verify Supabase URL and key
-2. Check database tables exist
-3. Run database migration if needed
-
-## ✅ Success Criteria
-
-- [ ] Render service starts without errors
-- [ ] Health endpoint returns 200 OK
-- [ ] Email endpoint accepts existing emails (perivihk@gmail.com)
-- [ ] Emails are sent successfully
-- [ ] No "email already exists" blocking issues
-- [ ] Frontend can send emails through Render backend
-
-## 📞 Support
-
-If issues persist:
-1. Check Render service logs
-2. Verify environment variables
-3. Test with fresh email address
-4. Check Gmail account settings
+# Environment
+ENVIRONMENT=production
 """
     
-    with open("render_deployment_checklist.md", 'w', encoding='utf-8') as f:
-        f.write(checklist)
+    with open(".env.render", "w") as f:
+        f.write(env_content)
     
-    print("✅ Created deployment checklist: render_deployment_checklist.md")
+    print("✅ Created .env.render file")
+    print("💡 IMPORTANT: Update the values in .env.render with your actual credentials")
+    print("💡 Then add these as environment variables in your Render dashboard")
+
+def update_render_yaml():
+    """Update render.yaml with email environment variables"""
+    print("\n🔧 Updating render.yaml")
+    print("=" * 50)
+    
+    render_config = {
+        "services": [
+            {
+                "type": "web",
+                "name": "medical-insurance-api",
+                "env": "python",
+                "plan": "free",
+                "buildCommand": "pip install -r requirements-render.txt",
+                "startCommand": "uvicorn app:app --host 0.0.0.0 --port $PORT --workers 1",
+                "envVars": [
+                    {"key": "PYTHON_VERSION", "value": "3.11.0"},
+                    {"key": "SUPABASE_URL", "value": "https://gucyzhjyciqnvxedmoxo.supabase.co"},
+                    {"key": "SUPABASE_ANON_KEY", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1Y3l6aGp5Y2lxbnZ4ZWRtb3hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4ODA0MTksImV4cCI6MjA3NDQ1NjQxOX0.BYbV3CHVTrd4KzhRAFSYB7S2RiFv342f0J-Es-4pkKI"},
+                    {"key": "SUPABASE_SERVICE_ROLE_KEY", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1Y3l6aGp5Y2lxbnZ4ZWRtb3hvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1ODg4MDQxOSwiZXhwIjoyMDc0NDU2NDE5fQ.yBrXifdpZ9vrymLQ1EiZnspxHfF0x73wAP0Mfl96kk4"},
+                    {"key": "JWT_SECRET_KEY", "value": "medical_insurance_dashboard_jwt_secret_key_2024_change_in_production"},
+                    {"key": "JWT_ALGORITHM", "value": "HS256"},
+                    {"key": "JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "value": "30"},
+                    {"key": "ENVIRONMENT", "value": "production"},
+                    {"key": "ALLOWED_ORIGINS", "value": "https://india-medical-insurance-frontend.vercel.app,http://localhost:3000,*"},
+                    {"key": "GMAIL_EMAIL", "value": "gokrishna98@gmail.com"},
+                    {"key": "GMAIL_APP_PASSWORD", "value": "lwkvzupqanxvafrm"}
+                ],
+                "healthCheckPath": "/health"
+            }
+        ]
+    }
+    
+    with open("render.yaml", "w") as f:
+        yaml_content = """services:
+  - type: web
+    name: medical-insurance-api
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements-render.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT --workers 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: SUPABASE_URL
+        value: https://gucyzhjyciqnvxedmoxo.supabase.co
+      - key: SUPABASE_ANON_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1Y3l6aGp5Y2lxbnZ4ZWRtb3hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4ODA0MTksImV4cCI6MjA3NDQ1NjQxOX0.BYbV3CHVTrd4KzhRAFSYB7S2RiFv342f0J-Es-4pkKI
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1Y3l6aGp5Y2lxbnZ4ZWRtb3hvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1ODg4MDQxOSwiZXhwIjoyMDc0NDU2NDE5fQ.yBrXifdpZ9vrymLQ1EiZnspxHfF0x73wAP0Mfl96kk4
+      - key: JWT_SECRET_KEY
+        value: medical_insurance_dashboard_jwt_secret_key_2024_change_in_production
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 30
+      - key: ENVIRONMENT
+        value: production
+      - key: ALLOWED_ORIGINS
+        value: https://india-medical-insurance-frontend.vercel.app,http://localhost:3000,*
+      - key: GMAIL_EMAIL
+        value: gokrishna98@gmail.com
+      - key: GMAIL_APP_PASSWORD
+        value: lwkvzupqanxvafrm
+    healthCheckPath: /health
+"""
+        f.write(yaml_content)
+    
+    print("✅ Updated render.yaml with Gmail environment variables")
+
+def show_deployment_instructions():
+    """Show deployment instructions"""
+    print("\n🚀 DEPLOYMENT INSTRUCTIONS")
+    print("=" * 50)
+    print("1. Update render.yaml with your actual Gmail credentials")
+    print("2. Deploy to Render using the dashboard or CLI:")
+    print("   render deploy")
+    print("3. In Render Dashboard:")
+    print("   - Go to your service settings")
+    print("   - Add these environment variables:")
+    print("     * GMAIL_EMAIL: your-gmail@gmail.com")
+    print("     * GMAIL_APP_PASSWORD: your-16-character-app-password")
+    print("4. Redeploy your service")
+    print("5. Test email functionality")
 
 def main():
-    """Main deployment function"""
-    
-    print("🚀 Deploy Email Fix to Render")
+    """Main function"""
+    print("📧 RENDER EMAIL FIX DEPLOYMENT SCRIPT")
     print("=" * 60)
     
-    # Test Render backend accessibility
-    render_accessible = test_render_backend()
+    # Check current environment
+    env_ok = check_environment_variables()
     
-    if render_accessible:
-        # Test email functionality
-        email_working = test_render_email_functionality()
-        
-        if email_working:
-            print("\n🎉 EMAIL FIX ALREADY WORKING ON RENDER!")
-            print("✅ No additional deployment needed")
-        else:
-            print("\n⚠️ Email functionality needs fixing on Render")
-            print("💡 Follow the deployment checklist")
+    if not env_ok:
+        print("\n⚠️  Missing environment variables detected")
+        create_render_env_file()
+        update_render_yaml()
+        show_deployment_instructions()
     else:
-        print("\n⚠️ Render backend not accessible")
-        print("💡 Service may be sleeping or needs deployment")
-    
-    # Check environment configuration
-    check_render_environment_status()
-    
-    # Create deployment checklist
-    create_render_deployment_checklist()
-    
-    print("\n📋 DEPLOYMENT SUMMARY")
-    print("=" * 60)
-    
-    if render_accessible:
-        print("✅ Render backend is accessible")
-    else:
-        print("⚠️ Render backend needs to be started/deployed")
+        print("\n✅ All required environment variables are set")
+        print("💡 You can deploy to Render now")
     
     print("\n🔧 NEXT STEPS:")
-    print("1. Review render_deployment_checklist.md")
-    print("2. Update environment variables in Render dashboard")
-    print("3. Push code changes to trigger deployment")
-    print("4. Test email functionality after deployment")
-    print("5. Verify with perivihk@gmail.com email")
-    
-    print("\n📁 FILES CREATED:")
-    print("- render_deployment_checklist.md")
-    print("- render_env_template.txt (from previous script)")
+    print("1. Review the updated render.yaml")
+    print("2. Deploy to Render")
+    print("3. Test email functionality with /test-email endpoint")
 
 if __name__ == "__main__":
     main()
