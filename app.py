@@ -1820,42 +1820,78 @@ async def admin_retrain_fast(current_user: str = Depends(get_current_user_from_t
 @app.post("/send-prediction-email", response_model=EmailResponse)
 async def send_prediction_email(request: EmailPredictionRequest):
     """
-    Bulletproof Gmail email endpoint with comprehensive error handling
+    Enhanced Gmail email endpoint with improved timeout handling and error reporting
     Uses the bulletproof_email_service for reliable email delivery
     """
     start_time = datetime.now()
     
     try:
-        print(f"📧 Processing email request for: {request.email} (BULLETPROOF SERVICE)")
+        print(f"📧 Processing email request for: {request.email} (ENHANCED BULLETPROOF SERVICE)")
+        print(f"⏱️ Request started at: {start_time}")
         
         # Use the bulletproof email service
         from bulletproof_email_service import bulletproof_email_service
         print("✅ Using bulletproof email service")
         
-        # Send email using bulletproof service
-        result = await bulletproof_email_service.send_prediction_email(
-            recipient_email=str(request.email),
-            prediction_data=request.prediction,
-            patient_data=request.patient_data
-        )
+        # Add timeout wrapper for the entire email operation
+        email_timeout = 150  # 2.5 minutes for Render
+        
+        try:
+            # Send email using bulletproof service with timeout
+            result = await asyncio.wait_for(
+                bulletproof_email_service.send_prediction_email(
+                    recipient_email=str(request.email),
+                    prediction_data=request.prediction,
+                    patient_data=request.patient_data
+                ),
+                timeout=email_timeout
+            )
+        except asyncio.TimeoutError:
+            processing_time = (datetime.now() - start_time).total_seconds()
+            print(f"⏰ Email operation timed out after {processing_time:.2f}s")
+            return EmailResponse(
+                success=False,
+                message=f"⏰ Email request timed out after {processing_time:.1f}s. Server may be overloaded - please try again."
+            )
         
         processing_time = (datetime.now() - start_time).total_seconds()
         print(f"⏱️ Email processing completed in {processing_time:.2f} seconds")
         
-        # Save email to database if successful (optional)
+        # Save email to database if successful (optional, don't let this fail the email)
         if result.get("success", False):
             try:
-                # Try to save email to users table
-                await supabase_client.save_email_to_users(str(request.email))
+                # Try to save email to users table (with timeout)
+                await asyncio.wait_for(
+                    supabase_client.save_email_to_users(str(request.email)),
+                    timeout=10  # 10 second timeout for database save
+                )
                 print(f"✅ Email {request.email} saved to users table")
+            except asyncio.TimeoutError:
+                print(f"⚠️ Database save timed out for {request.email} - continuing anyway")
             except Exception as e:
-                print(f"⚠️ Could not save email to database: {e}")
-                # Don't fail the email send if database save fails
+                print(f"⚠️ Could not save email to database: {e} - continuing anyway")
         
-        # Return result with proper error handling
+        # Return result with enhanced messaging
+        success = result.get("success", False)
+        message = result.get("message", "")
+        
+        if success:
+            # Enhance success message
+            enhanced_message = f"✅ Email delivered successfully to {request.email}! Processing time: {processing_time:.1f}s. Check your Gmail inbox (including spam folder)."
+        else:
+            # Enhance error message with more context
+            if "Gmail connection failed" in message:
+                enhanced_message = f"❌ Gmail connection failed for {request.email}. Email service may be temporarily unavailable. Processing time: {processing_time:.1f}s."
+            elif "timeout" in message.lower():
+                enhanced_message = f"⏰ Email request timed out for {request.email}. Server response was slow. Processing time: {processing_time:.1f}s."
+            elif "Authentication failed" in message:
+                enhanced_message = f"🔐 Gmail authentication failed. Email service configuration issue. Processing time: {processing_time:.1f}s."
+            else:
+                enhanced_message = message or f"❌ Email delivery failed for {request.email}. Processing time: {processing_time:.1f}s."
+        
         return EmailResponse(
-            success=result.get("success", False),
-            message=result.get("message", f"❌ Email delivery failed for {request.email}")
+            success=success,
+            message=enhanced_message
         )
             
     except Exception as e:
@@ -1864,10 +1900,11 @@ async def send_prediction_email(request: EmailPredictionRequest):
         import traceback
         print(f"Full traceback: {traceback.format_exc()}")
         
-        # Return honest error message
+        # Return honest error message with context
+        error_type = type(e).__name__
         return EmailResponse(
             success=False,
-            message=f"❌ Email sending failed: {str(e)}. Please check your email address and try again."
+            message=f"❌ Email sending failed ({error_type}): {str(e)}. Processing time: {processing_time:.1f}s. Please check your email address and try again."
         )
 
 @app.get('/admin/datasets')

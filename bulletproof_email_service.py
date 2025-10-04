@@ -30,10 +30,10 @@ class BulletproofEmailService:
         # Check if credentials are available
         self.email_enabled = bool(self.sender_email and self.sender_password)
         
-        # Aggressive timeout settings for Render
-        self.connection_timeout = 30
-        self.send_timeout = 45
-        self.total_timeout = 90
+        # Optimized timeout settings for Render deployment
+        self.connection_timeout = 45  # Increased for better reliability
+        self.send_timeout = 60        # Increased for large emails
+        self.total_timeout = 120      # Increased total timeout
         
         print("="*80)
         print("🛡️ BULLETPROOF EMAIL SERVICE - MediCare+ Platform")
