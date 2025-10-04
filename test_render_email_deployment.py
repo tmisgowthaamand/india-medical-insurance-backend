@@ -15,8 +15,8 @@ def test_render_email_deployment():
     print("🚀 TESTING RENDER EMAIL DEPLOYMENT")
     print("="*80)
     
-    # Render backend URL
-    render_url = "https://srv-d3b668ogjchc73f9ece0-latest.onrender.com"
+    # Render backend URL (correct URL)
+    render_url = "https://india-medical-insurance-backend.onrender.com"
     
     test_emails = [
         "gowthaamankrishna1998@gmail.com",  # User's email
@@ -136,7 +136,7 @@ def test_render_service_warmup():
     print("\n🔥 WARMING UP RENDER SERVICE")
     print("="*50)
     
-    render_url = "https://srv-d3b668ogjchc73f9ece0-latest.onrender.com"
+    render_url = "https://india-medical-insurance-backend.onrender.com"
     
     # Multiple quick requests to warm up the service
     for i in range(3):
